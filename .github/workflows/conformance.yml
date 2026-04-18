@@ -46,17 +46,47 @@ jobs:
 
       - name: Build cpp_roundtrip tool
         run: |
+          # Use pkg-config for HDF5 (Ubuntu names it libhdf5_serial, not libhdf5).
+          HDF5_CFLAGS="$(pkg-config --cflags hdf5 || pkg-config --cflags hdf5-serial)"
+          HDF5_LIBS="$(pkg-config --libs hdf5 || pkg-config --libs hdf5-serial)"
+          XML_CFLAGS="$(pkg-config --cflags libxml-2.0)"
+          XML_LIBS="$(pkg-config --libs libxml-2.0)"
+
+          echo "HDF5_CFLAGS=$HDF5_CFLAGS"
+          echo "HDF5_LIBS=$HDF5_LIBS"
+          echo "XML_CFLAGS=$XML_CFLAGS"
+          echo "XML_LIBS=$XML_LIBS"
+
+          # Find the built FieldML library (name and location can vary).
+          echo "--- FieldML-API/build layout ---"
+          find "$GITHUB_WORKSPACE/FieldML-API/build" -maxdepth 4 -name 'libfieldml*' -o -name '*.so' -o -name '*.a' | head -40
+
+          FIELDML_LIBDIR="$GITHUB_WORKSPACE/FieldML-API/build"
+          # Collect every dir that contains a libfieldml* so we can -L each of them.
+          LDFLAGS=""
+          RPATH=""
+          for dir in $(find "$FIELDML_LIBDIR" -type d -exec test -e '{}/libfieldml_api.so' ';' -print 2>/dev/null \
+                      ; find "$FIELDML_LIBDIR" -type d -exec test -e '{}/libfieldml_api.a' ';' -print 2>/dev/null \
+                      ; find "$FIELDML_LIBDIR" -type d -exec test -e '{}/libfieldml_api_io.so' ';' -print 2>/dev/null); do
+            LDFLAGS="$LDFLAGS -L$dir"
+            RPATH="$RPATH:$dir"
+          done
+          echo "LDFLAGS=$LDFLAGS"
+          echo "RPATH=$RPATH"
+
           g++ -std=c++17 -O2 \
             -I "$GITHUB_WORKSPACE/FieldML-API/core/src" \
             -I "$GITHUB_WORKSPACE/FieldML-API/io/src" \
+            $HDF5_CFLAGS $XML_CFLAGS \
             "$GITHUB_WORKSPACE/pyfieldml/tests/conformance/cpp_roundtrip.cpp" \
-            -L "$GITHUB_WORKSPACE/FieldML-API/build" \
-            -L "$GITHUB_WORKSPACE/FieldML-API/build/core" \
-            -L "$GITHUB_WORKSPACE/FieldML-API/build/io" \
-            -lfieldml_api -lxml2 -lhdf5 \
-            -Wl,-rpath,"$GITHUB_WORKSPACE/FieldML-API/build/core:$GITHUB_WORKSPACE/FieldML-API/build/io:$GITHUB_WORKSPACE/FieldML-API/build" \
+            $LDFLAGS \
+            -lfieldml_api \
+            $HDF5_LIBS $XML_LIBS \
+            -Wl,-rpath,"$RPATH" \
             -o "$GITHUB_WORKSPACE/cpp_roundtrip"
-          "$GITHUB_WORKSPACE/cpp_roundtrip" || true   # sanity check: prints usage
+
+          echo "--- sanity: print usage ---"
+          "$GITHUB_WORKSPACE/cpp_roundtrip" || true
 
       - uses: astral-sh/setup-uv@v3
         with:
