@@ -1,0 +1,49 @@
+site_name: pyfieldml
+site_description: A pure-Python implementation of FieldML 0.5 with evaluation engine and biomechanics model zoo.
+site_url: https://kchemorion.github.io/pyfieldml/
+repo_url: https://github.com/kchemorion/pyfieldml
+repo_name: kchemorion/pyfieldml
+edit_uri: edit/main/docs/
+
+exclude_docs: |
+  superpowers/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+    - content.code.annotate
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            show_signature_annotations: true
+            separate_signature: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - API reference: api/index.md
