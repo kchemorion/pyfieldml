@@ -69,6 +69,10 @@ path = "src/pyfieldml/_version.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/pyfieldml"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"src/pyfieldml/library/FieldML_0.5.xsd" = "pyfieldml/library/FieldML_0.5.xsd"
+"src/pyfieldml/library/FieldML_Library_0.5.xml" = "pyfieldml/library/FieldML_Library_0.5.xml"
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
