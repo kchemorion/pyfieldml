@@ -1,0 +1,71 @@
+name: Conformance
+
+on:
+  schedule:
+    - cron: "17 3 * * *"  # nightly, ~3:17 UTC
+  workflow_dispatch:
+  push:
+    tags: ["v*.*.*"]
+
+concurrency:
+  group: conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cross-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: pyfieldml
+
+      - uses: actions/checkout@v4
+        with:
+          repository: kchemorion/FieldML-API
+          path: FieldML-API
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-dev libhdf5-dev cmake build-essential pkg-config g++
+
+      - name: Cache built C++ library
+        uses: actions/cache@v4
+        id: cppcache
+        with:
+          path: FieldML-API/build
+          key: cppref-${{ runner.os }}-${{ hashFiles('FieldML-API/CMakeLists.txt') }}
+
+      - name: Build C++ FieldML-API reference library
+        if: steps.cppcache.outputs.cache-hit != 'true'
+        working-directory: FieldML-API
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j4
+
+      - name: Build cpp_roundtrip tool
+        run: |
+          g++ -std=c++17 -O2 \
+            -I "$GITHUB_WORKSPACE/FieldML-API/core/src" \
+            -I "$GITHUB_WORKSPACE/FieldML-API/io/src" \
+            "$GITHUB_WORKSPACE/pyfieldml/tests/conformance/cpp_roundtrip.cpp" \
+            -L "$GITHUB_WORKSPACE/FieldML-API/build" \
+            -L "$GITHUB_WORKSPACE/FieldML-API/build/core" \
+            -L "$GITHUB_WORKSPACE/FieldML-API/build/io" \
+            -lfieldml_api -lxml2 -lhdf5 \
+            -Wl,-rpath,"$GITHUB_WORKSPACE/FieldML-API/build/core:$GITHUB_WORKSPACE/FieldML-API/build/io:$GITHUB_WORKSPACE/FieldML-API/build" \
+            -o "$GITHUB_WORKSPACE/cpp_roundtrip"
+          "$GITHUB_WORKSPACE/cpp_roundtrip" || true   # sanity check: prints usage
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyfieldml/pyproject.toml"
+
+      - name: Run conformance tests
+        working-directory: pyfieldml
+        env:
+          PYFIELDML_CPP_REF: ${{ github.workspace }}/cpp_roundtrip
+        run: |
+          uv sync --extra dev
+          uv run pytest tests/conformance -v
