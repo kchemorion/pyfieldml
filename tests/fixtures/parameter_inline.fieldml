@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Fieldml version="0.5.0">
+  <Region name="test">
+    <ContinuousType name="real.1d"/>
+    <ParameterEvaluator name="p" valueType="real.1d">
+      <DenseArrayData>
+        <DataSource name="inline_src" location="/" rank="1">
+          <ArrayDataSize>4</ArrayDataSize>
+        </DataSource>
+        <DataResourceString>1.0 2.0 3.0 4.0</DataResourceString>
+      </DenseArrayData>
+    </ParameterEvaluator>
+  </Region>
+</Fieldml>
