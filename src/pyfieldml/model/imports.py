@@ -32,7 +32,7 @@ class ImportResolver:
         path = self._find_source(href)
         if path is None:
             raise UnresolvedImportError(
-                f"Cannot locate FieldML import {href!r} " f"(base_dir={self.base_dir})"
+                f"Cannot locate FieldML import {href!r} (base_dir={self.base_dir})"
             )
         # Lazy to avoid cycles: _loader depends on this module.
         from pyfieldml.model._loader import load_region_from_file
