@@ -25,6 +25,34 @@ FieldML is the [Physiome Project](https://physiomeproject.org/)'s declarative ma
 
 Apache 2.0. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
 
+## Install
+
+```bash
+pip install pyfieldml
+```
+
+Development:
+
+```bash
+git clone https://github.com/kchemorion/pyfieldml
+cd pyfieldml
+uv sync --extra dev
+uv run pytest
+```
+
+## Quickstart
+
+```python
+import pyfieldml as fml
+
+doc = fml.read("model.fieldml")
+print(doc.source_version)          # "0.5.0", "0.4", "0.3"
+doc.validate()                     # XSD validation
+doc.write("roundtripped.fieldml")
+```
+
+> Phase 0 ships I/O and DOM-level round-trip. The semantic object model, evaluation engine, interop bridges, and model zoo arrive in later phases — see the [design spec](docs/superpowers/specs/2026-04-18-pyfieldml-design.md) and [plans](docs/superpowers/plans/).
+
 ## Acknowledgments
 
 `pyfieldml` is an independent Python reimplementation inspired by and validated against the C++ [FieldML-API](https://github.com/kchemorion/FieldML-API). Credit to its original authors — Caton Little, Alan Wu, Richard Christie, Andrew Miller, and Auckland Uniservices Ltd / the Auckland Bioengineering Institute — and to the Physiome Project community that maintains the FieldML specification.
