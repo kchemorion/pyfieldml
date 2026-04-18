@@ -37,3 +37,24 @@ def test_document_exposes_region_views(fixtures_dir: Path) -> None:
     assert "real.3d" in doc.continuous
     assert doc.continuous["real.3d"].component_count == 3
     assert set(doc.evaluators.keys()) == {"arg", "k", "r", "agg"}
+
+
+def test_document_from_region_writes_and_roundtrips(tmp_path: Path) -> None:
+    from pyfieldml.model.evaluators import ConstantEvaluator
+    from pyfieldml.model.region import Region
+    from pyfieldml.model.types import ContinuousType
+
+    r = Region(name="built")
+    t = ContinuousType(name="real.1d")
+    r.add_type(t)
+    r.add_evaluator(ConstantEvaluator(name="k", value_type=t, value=42.0))
+
+    doc = fml.Document.from_region(r)
+    out = tmp_path / "built.fieldml"
+    doc.write(out)
+
+    doc2 = fml.read(out)
+    assert doc2.continuous["real.1d"].name == "real.1d"
+    k = doc2.evaluators["k"]
+    assert isinstance(k, ConstantEvaluator)
+    assert k.value == 42.0

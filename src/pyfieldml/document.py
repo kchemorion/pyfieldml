@@ -46,6 +46,16 @@ class Document:
         """Read a FieldML document from an in-memory string/bytes."""
         raise NotImplementedError("Phase 1: from_string is deferred; use from_file for now.")
 
+    @classmethod
+    def from_region(cls, region: Region) -> Document:
+        """Build a Document from a programmatically-constructed Region."""
+        from pyfieldml.dom.parser import ParsedDocument
+        from pyfieldml.model._writer import region_to_tree
+
+        tree = region_to_tree(region)
+        parsed = ParsedDocument(tree=tree, version="0.5.0", source_file=None)
+        return cls(parsed, region)
+
     @property
     def source_version(self) -> str:
         """FieldML version declared on the root element (``@version``)."""
