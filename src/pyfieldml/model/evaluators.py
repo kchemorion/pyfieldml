@@ -56,3 +56,8 @@ class ConstantEvaluator(Evaluator):
         if isinstance(value, list | tuple):
             return np.asarray(value)
         return cast("float | int | bool", value)
+
+
+@dataclass
+class ArgumentEvaluator(Evaluator):
+    """Formal-parameter placeholder. Must be bound at call-sites."""
