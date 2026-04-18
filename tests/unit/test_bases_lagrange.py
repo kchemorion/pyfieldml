@@ -17,6 +17,12 @@ from pyfieldml.eval.bases import get_basis
         ("library.basis.linear_lagrange.tet", 4),
         ("library.basis.linear_lagrange.hex", 8),
         ("library.basis.linear_lagrange.wedge", 6),
+        ("library.basis.quadratic_lagrange.line", 3),
+        ("library.basis.quadratic_lagrange.triangle", 6),
+        ("library.basis.quadratic_lagrange.quad", 9),
+        ("library.basis.quadratic_lagrange.tet", 10),
+        ("library.basis.quadratic_lagrange.hex", 27),
+        ("library.basis.quadratic_lagrange.wedge", 18),
     ],
 )
 def test_linear_partition_of_unity_at_random_xi(name: str, n: int) -> None:
@@ -40,6 +46,12 @@ def test_linear_partition_of_unity_at_random_xi(name: str, n: int) -> None:
         ("library.basis.linear_lagrange.tet", 4),
         ("library.basis.linear_lagrange.hex", 8),
         ("library.basis.linear_lagrange.wedge", 6),
+        ("library.basis.quadratic_lagrange.line", 3),
+        ("library.basis.quadratic_lagrange.triangle", 6),
+        ("library.basis.quadratic_lagrange.quad", 9),
+        ("library.basis.quadratic_lagrange.tet", 10),
+        ("library.basis.quadratic_lagrange.hex", 27),
+        ("library.basis.quadratic_lagrange.wedge", 18),
     ],
 )
 def test_kronecker_delta_at_nodes(name: str, n: int) -> None:
@@ -81,6 +93,65 @@ def _reference_nodes(name: str) -> np.ndarray:
             [0, 0, 1],
             [1, 0, 1],
             [0, 1, 1],
+        ],
+        "library.basis.quadratic_lagrange.line": [[0.0], [0.5], [1.0]],
+        "library.basis.quadratic_lagrange.triangle": [
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [0.5, 0.0],
+            [0.5, 0.5],
+            [0.0, 0.5],
+        ],
+        "library.basis.quadratic_lagrange.quad": [
+            [0.0, 0.0],
+            [0.5, 0.0],
+            [1.0, 0.0],
+            [0.0, 0.5],
+            [0.5, 0.5],
+            [1.0, 0.5],
+            [0.0, 1.0],
+            [0.5, 1.0],
+            [1.0, 1.0],
+        ],
+        "library.basis.quadratic_lagrange.tet": [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.5, 0.0, 0.0],
+            [0.5, 0.5, 0.0],
+            [0.0, 0.5, 0.0],
+            [0.0, 0.0, 0.5],
+            [0.5, 0.0, 0.5],
+            [0.0, 0.5, 0.5],
+        ],
+        "library.basis.quadratic_lagrange.hex": [
+            [i * 0.5, j * 0.5, k * 0.5] for k in range(3) for j in range(3) for i in range(3)
+        ],
+        "library.basis.quadratic_lagrange.wedge": [
+            # Line-outer, tri-inner: k = l*6 + t.
+            # l=0, w=0
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.5, 0.0, 0.0],
+            [0.5, 0.5, 0.0],
+            [0.0, 0.5, 0.0],
+            # l=1, w=0.5
+            [0.0, 0.0, 0.5],
+            [1.0, 0.0, 0.5],
+            [0.0, 1.0, 0.5],
+            [0.5, 0.0, 0.5],
+            [0.5, 0.5, 0.5],
+            [0.0, 0.5, 0.5],
+            # l=2, w=1
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 1.0],
+            [0.0, 1.0, 1.0],
+            [0.5, 0.0, 1.0],
+            [0.5, 0.5, 1.0],
+            [0.0, 0.5, 1.0],
         ],
     }
     return np.array(table[name], dtype=np.float64)
