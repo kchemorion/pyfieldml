@@ -1,0 +1,37 @@
+"""Regenerate test fixtures that require external data files.
+
+Run: ``uv run python tests/fixtures/make_fixtures.py``
+"""
+
+from pathlib import Path
+
+import h5py
+import numpy as np
+
+HERE = Path(__file__).parent
+
+# parameter_hdf5.h5
+with h5py.File(HERE / "parameter_hdf5.h5", "w") as f:
+    f.create_dataset("/coords", data=np.arange(12, dtype=np.float64).reshape(4, 3))
+
+# parameter_hdf5.fieldml — matches the above
+(HERE / "parameter_hdf5.fieldml").write_text(
+    """<?xml version="1.0" encoding="UTF-8"?>
+<Fieldml version="0.5.0"
+  xmlns:xlink="http://www.w3.org/1999/xlink">
+  <Region name="test">
+    <ContinuousType name="real.3d">
+      <Components name="real.3d.component" count="3"/>
+    </ContinuousType>
+    <ParameterEvaluator name="coords" valueType="real.3d">
+      <DenseArrayData>
+        <DataSource name="coords_src" location="/coords" rank="2">
+          <ArrayDataSize>4 3</ArrayDataSize>
+        </DataSource>
+        <DataResourceHref xlink:href="parameter_hdf5.h5" format="HDF5"/>
+      </DenseArrayData>
+    </ParameterEvaluator>
+  </Region>
+</Fieldml>
+"""
+)

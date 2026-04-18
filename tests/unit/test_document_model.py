@@ -58,3 +58,13 @@ def test_document_from_region_writes_and_roundtrips(tmp_path: Path) -> None:
     k = doc2.evaluators["k"]
     assert isinstance(k, ConstantEvaluator)
     assert k.value == 42.0
+
+
+def test_parameter_hdf5_loads_and_round_trips(fixtures_dir: Path) -> None:
+    doc = fml.read(fixtures_dir / "parameter_hdf5.fieldml")
+    coords = doc.evaluators["coords"]
+    assert isinstance(coords, ParameterEvaluator)
+    arr = coords.as_ndarray()
+    assert arr.shape == (4, 3)
+    assert arr.dtype == np.float64
+    np.testing.assert_array_equal(arr.ravel(), np.arange(12))
