@@ -2,10 +2,14 @@
 
 from pyfieldml.model.bindings import ArgumentBinding, BindingTable
 from pyfieldml.model.evaluators import (
+    AggregateEvaluator,
     ArgumentEvaluator,
     ConstantEvaluator,
     Evaluator,
+    ExternalEvaluator,
     ParameterEvaluator,
+    PiecewiseEvaluator,
+    ReferenceEvaluator,
 )
 from pyfieldml.model.types import (
     BooleanType,
@@ -15,6 +19,7 @@ from pyfieldml.model.types import (
 )
 
 __all__ = [
+    "AggregateEvaluator",
     "ArgumentBinding",
     "ArgumentEvaluator",
     "BindingTable",
@@ -23,6 +28,9 @@ __all__ = [
     "ContinuousType",
     "EnsembleType",
     "Evaluator",
+    "ExternalEvaluator",
     "MeshType",
     "ParameterEvaluator",
+    "PiecewiseEvaluator",
+    "ReferenceEvaluator",
 ]

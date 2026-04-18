@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -15,6 +15,9 @@ from pyfieldml.model.types import (
     EnsembleType,
     MeshType,
 )
+
+if TYPE_CHECKING:
+    from pyfieldml.model.bindings import BindingTable
 
 ValueType = BooleanType | EnsembleType | ContinuousType | MeshType
 
@@ -61,3 +64,31 @@ class ConstantEvaluator(Evaluator):
 @dataclass
 class ArgumentEvaluator(Evaluator):
     """Formal-parameter placeholder. Must be bound at call-sites."""
+
+
+@dataclass
+class ReferenceEvaluator(Evaluator):
+    """Reference another evaluator, optionally with argument bindings."""
+
+    source: Evaluator = field(default=None)  # type: ignore[assignment]
+    bindings: BindingTable = field(default=None)  # type: ignore[assignment]
+
+
+@dataclass
+class AggregateEvaluator(Evaluator):
+    """Assemble a value from per-component sub-evaluators."""
+
+    components: list[Evaluator] = field(default_factory=list)
+
+
+@dataclass
+class PiecewiseEvaluator(Evaluator):
+    """Dispatch to a per-ensemble-index sub-evaluator; optional default."""
+
+    pieces: dict[int, Evaluator] = field(default_factory=dict)
+    default: Evaluator | None = None
+
+
+@dataclass
+class ExternalEvaluator(Evaluator):
+    """Reference to an object defined in an imported library (e.g. a basis function)."""
