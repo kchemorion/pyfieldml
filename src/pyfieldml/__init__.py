@@ -15,6 +15,7 @@ from pyfieldml.errors import (
     UnboundArgumentError,
     UnresolvedImportError,
 )
+from pyfieldml.model.region import Region
 
 PathLike = str | Path
 
@@ -36,6 +37,7 @@ __all__ = [
     "FieldMLError",
     "FieldMLParseError",
     "FieldMLValidationError",
+    "Region",
     "UnboundArgumentError",
     "UnresolvedImportError",
     "__version__",
