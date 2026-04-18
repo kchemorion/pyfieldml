@@ -16,6 +16,9 @@ env/
 .tox/
 .nox/
 
+# uv (library: lockfile not committed)
+uv.lock
+
 # Testing / coverage
 .pytest_cache/
 .coverage
