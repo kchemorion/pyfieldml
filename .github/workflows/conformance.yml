@@ -5,6 +5,7 @@ on:
     - cron: "17 3 * * *"  # nightly, ~3:17 UTC
   workflow_dispatch:
   push:
+    branches: ["phase-1"]
     tags: ["v*.*.*"]
 
 concurrency:
