@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Fieldml version="0.5.0">
+  <Region name="test">
+    <ContinuousType name="real.1d"/>
+    <ContinuousType name="real.3d">
+      <Components name="real.3d.component" count="3"/>
+    </ContinuousType>
+    <ArgumentEvaluator name="arg" valueType="real.1d"/>
+    <ConstantEvaluator name="k" valueType="real.1d" value="1.0"/>
+    <ReferenceEvaluator name="r" valueType="real.1d" evaluator="k">
+      <Bindings>
+        <Bind argument="arg" source="k"/>
+      </Bindings>
+    </ReferenceEvaluator>
+    <AggregateEvaluator name="agg" valueType="real.3d" indexEvaluator="real.3d.component">
+      <ComponentEvaluators default="k"/>
+    </AggregateEvaluator>
+  </Region>
+</Fieldml>

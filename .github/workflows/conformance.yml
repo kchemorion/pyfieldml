@@ -1,0 +1,101 @@
+name: Conformance
+
+on:
+  schedule:
+    - cron: "17 3 * * *"  # nightly, ~3:17 UTC
+  workflow_dispatch:
+  push:
+    tags: ["v*.*.*"]
+
+concurrency:
+  group: conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cross-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: pyfieldml
+
+      - uses: actions/checkout@v4
+        with:
+          repository: kchemorion/FieldML-API
+          path: FieldML-API
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-dev libhdf5-dev cmake build-essential pkg-config g++
+
+      - name: Cache built C++ library
+        uses: actions/cache@v4
+        id: cppcache
+        with:
+          path: FieldML-API/build
+          key: cppref-${{ runner.os }}-${{ hashFiles('FieldML-API/CMakeLists.txt') }}
+
+      - name: Build C++ FieldML-API reference library
+        if: steps.cppcache.outputs.cache-hit != 'true'
+        working-directory: FieldML-API
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j4
+
+      - name: Build cpp_roundtrip tool
+        run: |
+          # Use pkg-config for HDF5 (Ubuntu names it libhdf5_serial, not libhdf5).
+          HDF5_CFLAGS="$(pkg-config --cflags hdf5 || pkg-config --cflags hdf5-serial)"
+          HDF5_LIBS="$(pkg-config --libs hdf5 || pkg-config --libs hdf5-serial)"
+          XML_CFLAGS="$(pkg-config --cflags libxml-2.0)"
+          XML_LIBS="$(pkg-config --libs libxml-2.0)"
+
+          echo "HDF5_CFLAGS=$HDF5_CFLAGS"
+          echo "HDF5_LIBS=$HDF5_LIBS"
+          echo "XML_CFLAGS=$XML_CFLAGS"
+          echo "XML_LIBS=$XML_LIBS"
+
+          # Find the built FieldML library (name and location can vary).
+          echo "--- FieldML-API/build layout ---"
+          find "$GITHUB_WORKSPACE/FieldML-API/build" -maxdepth 4 -name 'libfieldml*' -o -name '*.so' -o -name '*.a' | head -40
+
+          FIELDML_LIBDIR="$GITHUB_WORKSPACE/FieldML-API/build"
+          # Collect every dir that contains a libfieldml* so we can -L each of them.
+          LDFLAGS=""
+          RPATH=""
+          for dir in $(find "$FIELDML_LIBDIR" -type d -exec test -e '{}/libfieldml_api.so' ';' -print 2>/dev/null \
+                      ; find "$FIELDML_LIBDIR" -type d -exec test -e '{}/libfieldml_api.a' ';' -print 2>/dev/null \
+                      ; find "$FIELDML_LIBDIR" -type d -exec test -e '{}/libfieldml_api_io.so' ';' -print 2>/dev/null); do
+            LDFLAGS="$LDFLAGS -L$dir"
+            RPATH="$RPATH:$dir"
+          done
+          echo "LDFLAGS=$LDFLAGS"
+          echo "RPATH=$RPATH"
+
+          g++ -std=c++17 -O2 \
+            -I "$GITHUB_WORKSPACE/FieldML-API/core/src" \
+            -I "$GITHUB_WORKSPACE/FieldML-API/io/src" \
+            $HDF5_CFLAGS $XML_CFLAGS \
+            "$GITHUB_WORKSPACE/pyfieldml/tests/conformance/cpp_roundtrip.cpp" \
+            $LDFLAGS \
+            -lfieldml_api \
+            $HDF5_LIBS $XML_LIBS \
+            -Wl,-rpath,"$RPATH" \
+            -o "$GITHUB_WORKSPACE/cpp_roundtrip"
+
+          echo "--- sanity: print usage ---"
+          "$GITHUB_WORKSPACE/cpp_roundtrip" || true
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyfieldml/pyproject.toml"
+
+      - name: Run conformance tests
+        working-directory: pyfieldml
+        env:
+          PYFIELDML_CPP_REF: ${{ github.workspace }}/cpp_roundtrip
+        run: |
+          uv sync --extra dev
+          uv run pytest tests/conformance -v
