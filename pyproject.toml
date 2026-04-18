@@ -51,6 +51,7 @@ all = [
     "pyfieldml[viz,meshio,scikit-fem,opensim]",
 ]
 dev = [
+    "build>=1.2",
     "pytest>=8",
     "pytest-cov>=5",
     "nbmake>=1.5",
