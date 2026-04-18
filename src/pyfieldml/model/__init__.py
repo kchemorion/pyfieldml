@@ -11,6 +11,7 @@ from pyfieldml.model.evaluators import (
     PiecewiseEvaluator,
     ReferenceEvaluator,
 )
+from pyfieldml.model.region import Region
 from pyfieldml.model.types import (
     BooleanType,
     ContinuousType,
@@ -33,4 +34,5 @@ __all__ = [
     "ParameterEvaluator",
     "PiecewiseEvaluator",
     "ReferenceEvaluator",
+    "Region",
 ]
