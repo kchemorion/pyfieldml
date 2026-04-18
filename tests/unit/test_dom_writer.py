@@ -18,9 +18,7 @@ def test_round_trip_minimal_produces_valid_output(fixtures_dir: Path, tmp_path: 
     assert reparsed.version == "0.5.0"
 
 
-def test_round_trip_preserves_child_count_and_order(
-    fixtures_dir: Path, tmp_path: Path
-) -> None:
+def test_round_trip_preserves_child_count_and_order(fixtures_dir: Path, tmp_path: Path) -> None:
     parsed = parse_file(fixtures_dir / "two_types.fieldml")
     out = tmp_path / "roundtrip.fieldml"
     write_file(parsed.tree, out)
@@ -41,9 +39,7 @@ def test_write_string_returns_bytes_with_declaration() -> None:
     assert b"<Fieldml" in output
 
 
-def test_write_file_uses_utf8_and_trailing_newline(
-    fixtures_dir: Path, tmp_path: Path
-) -> None:
+def test_write_file_uses_utf8_and_trailing_newline(fixtures_dir: Path, tmp_path: Path) -> None:
     parsed = parse_file(fixtures_dir / "minimal.fieldml")
     out = tmp_path / "out.fieldml"
     write_file(parsed.tree, out)

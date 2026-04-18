@@ -14,9 +14,7 @@ from lxml import etree
 
 from pyfieldml.errors import FieldMLParseError
 
-SUPPORTED_VERSIONS: frozenset[str] = frozenset(
-    {"0.3", "0.3.0", "0.4", "0.4.0", "0.5", "0.5.0"}
-)
+SUPPORTED_VERSIONS: frozenset[str] = frozenset({"0.3", "0.3.0", "0.4", "0.4.0", "0.5", "0.5.0"})
 
 PathLike = str | Path
 
@@ -88,8 +86,7 @@ def _validate_root(tree: etree._ElementTree, *, source_file: str | None) -> str:
         )
     if version not in SUPPORTED_VERSIONS:
         raise FieldMLParseError(
-            f"Unsupported FieldML version {version!r}. "
-            f"Supported: {sorted(SUPPORTED_VERSIONS)}",
+            f"Unsupported FieldML version {version!r}. Supported: {sorted(SUPPORTED_VERSIONS)}",
             source_file=source_file,
             line=root.sourceline,
         )

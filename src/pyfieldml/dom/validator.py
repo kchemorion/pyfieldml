@@ -61,7 +61,6 @@ def validate_tree(tree: etree._ElementTree) -> None:
     if schema.validate(tree):
         return
     issues = [
-        f"{error.filename or '<input>'}:{error.line}: {error.message}"
-        for error in schema.error_log
+        f"{error.filename or '<input>'}:{error.line}: {error.message}" for error in schema.error_log
     ]
     raise FieldMLValidationError(issues)

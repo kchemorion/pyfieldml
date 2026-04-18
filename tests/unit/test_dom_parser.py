@@ -50,9 +50,7 @@ def test_parse_reports_source_location_on_malformed_xml(tmp_path: Path) -> None:
 
 def test_parse_rejects_unknown_version(tmp_path: Path) -> None:
     bad = tmp_path / "future.fieldml"
-    bad.write_text(
-        '<?xml version="1.0"?><Fieldml version="9.9.9"><Region name="r"/></Fieldml>'
-    )
+    bad.write_text('<?xml version="1.0"?><Fieldml version="9.9.9"><Region name="r"/></Fieldml>')
     with pytest.raises(FieldMLParseError, match="Unsupported FieldML version"):
         parse_file(bad)
 
