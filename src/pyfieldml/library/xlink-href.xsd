@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Local mirror of the xlink @href attribute declaration.
+     Replaces the remote fetch of
+     http://www.cellml.org/tools/cellml_1_1_schema/common/xlink-href.xsd
+     so FieldML 0.5 XSD loading succeeds offline. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:xlink="http://www.w3.org/1999/xlink"
+           targetNamespace="http://www.w3.org/1999/xlink"
+           elementFormDefault="qualified">
+  <xs:attribute name="href" type="xs:anyURI"/>
+</xs:schema>

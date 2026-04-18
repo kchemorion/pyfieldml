@@ -72,6 +72,7 @@ packages = ["src/pyfieldml"]
 [tool.hatch.build.targets.wheel.force-include]
 "src/pyfieldml/library/FieldML_0.5.xsd" = "pyfieldml/library/FieldML_0.5.xsd"
 "src/pyfieldml/library/FieldML_Library_0.5.xml" = "pyfieldml/library/FieldML_Library_0.5.xml"
+"src/pyfieldml/library/xlink-href.xsd" = "pyfieldml/library/xlink-href.xsd"
 
 [tool.ruff]
 line-length = 100
