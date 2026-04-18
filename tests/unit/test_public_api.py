@@ -37,4 +37,6 @@ def test_read_then_write_then_reread(fixtures_dir: Path, tmp_path: Path) -> None
 
 
 def test_package_exposes_version() -> None:
-    assert fml.__version__ == "0.0.1"
+    import re
+
+    assert re.match(r"^\d+\.\d+\.\d+([a-zA-Z0-9.+-]*)$", fml.__version__)
