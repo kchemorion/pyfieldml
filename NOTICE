@@ -1,0 +1,26 @@
+pyfieldml
+Copyright 2026 The pyfieldml contributors
+
+This product includes software developed by the pyfieldml contributors
+(https://github.com/kchemorion/pyfieldml).
+
+pyfieldml is an independent Python reimplementation of FieldML 0.5. It is
+inspired by and validated in CI against the original C++ FieldML-API:
+
+    https://github.com/kchemorion/FieldML-API
+
+The original FieldML-API (tri-licensed under MPL 1.1 / GPL 2.0 / LGPL 2.1)
+was developed by:
+
+    - Caton Little (initial author)
+    - Alan Wu
+    - Richard Christie
+    - Andrew Miller
+    - Auckland Uniservices Ltd (initial developer)
+    - The Auckland Bioengineering Institute, University of Auckland
+
+The FieldML specification and standard library are maintained by the
+Physiome Project (https://physiomeproject.org/).
+
+pyfieldml does not incorporate source code from the original FieldML-API.
+This NOTICE acknowledges the foundational work that made pyfieldml possible.

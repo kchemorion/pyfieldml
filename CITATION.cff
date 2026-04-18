@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: pyfieldml
+message: "If you use pyfieldml in academic work, please cite it as below."
+type: software
+authors:
+  - family-names: Chemorion
+    given-names: Francis
+    affiliation: "Universitat Pompeu Fabra"
+repository-code: "https://github.com/kchemorion/pyfieldml"
+url: "https://github.com/kchemorion/pyfieldml"
+abstract: >-
+  A modern pure-Python implementation of the FieldML 0.5 specification with
+  a full evaluation engine, interop bridges to meshio, PyVista, XDMF,
+  scikit-fem, and OpenSim-compatible assets, and a curated biomechanics
+  model zoo for musculoskeletal and cardiac modelling.
+keywords:
+  - fieldml
+  - finite-element
+  - computational-physiology
+  - biomechanics
+  - musculoskeletal
+  - cardiac-modeling
+  - physiome
+  - opencmiss
+  - scientific-computing
+license: Apache-2.0
+version: 0.0.0
+date-released: "2026-04-18"
