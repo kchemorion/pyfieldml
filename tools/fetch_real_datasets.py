@@ -33,6 +33,9 @@ BUNNY_CANDIDATES = (
 )
 
 MAX_BUNDLE_BYTES = 150_000
+# Budget for the BodyParts3D femur: larger than the bunny because
+# watertight edge-collapse decimation needs more triangles than random-drop.
+MAX_BP3D_BYTES = 200_000
 
 
 def _download(url: str, *, timeout: float = 60.0) -> bytes:
@@ -133,23 +136,37 @@ BP3D_FEMUR_LABEL = "left femur (FMA24475)"
 
 
 def _decimate_triangles(
-    points: np.ndarray, triangles: np.ndarray, target: int, *, seed: int = 0
+    points: np.ndarray, triangles: np.ndarray, target: int
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Return a ``target``-triangle random subsample plus renumbered nodes.
+    """Return a topology-preserving edge-collapse decimation to ~``target`` triangles.
 
-    Random subsampling (no edge-collapse) is coarse but good enough for a
-    zoo asset - we just want a sub-150-KB FieldML surface mesh that
-    recognisably shows a femur.
+    Uses pyvista / VTK quadric decimation, which collapses edges rather
+    than dropping random triangles, so the output stays watertight. If the
+    mesh is already at or below ``target``, returns the input unchanged.
+    Falls back silently to the input mesh if pyvista can't be imported
+    (the caller still gets a full, non-swiss-cheese mesh, just a little
+    bigger).
     """
     if triangles.shape[0] <= target:
         return points, triangles
-    rng = np.random.default_rng(seed)
-    idx = rng.choice(triangles.shape[0], size=target, replace=False)
-    tri_sub = triangles[np.sort(idx)]
-    used = np.unique(tri_sub)
-    remap = np.full(points.shape[0], -1, dtype=np.int64)
-    remap[used] = np.arange(used.size, dtype=np.int64)
-    return points[used], remap[tri_sub]
+    try:
+        import pyvista as pv
+    except ImportError:
+        # Without pyvista we can't do edge-collapse decimation. Random
+        # subsampling destroys watertightness (see v1.1 regression), so
+        # prefer the full mesh to a holey one.
+        return points, triangles
+
+    # Build a PolyData: flat [3, i, j, k, 3, ...] cells array.
+    faces = np.hstack([np.full((triangles.shape[0], 1), 3, dtype=np.int64), triangles]).flatten()
+    poly = pv.PolyData(points, faces)
+    target_reduction = 1.0 - (target / triangles.shape[0])
+    dec = poly.decimate(target_reduction, volume_preservation=True)
+
+    pts_out = np.asarray(dec.points, dtype=np.float64)
+    faces_flat = np.asarray(dec.faces, dtype=np.int64)
+    tris_out = faces_flat.reshape(-1, 4)[:, 1:]
+    return pts_out, tris_out
 
 
 def _extract_bp3d_femur_obj(zip_blob: bytes) -> tuple[str, bytes] | None:
@@ -224,10 +241,13 @@ def fetch_bodyparts3d_femur() -> Path | None:
     pts = np.asarray(mesh.points, dtype=np.float64)
     tris = np.asarray(tri_blocks[0].data, dtype=np.int64)
 
-    # Decimate to keep file < 150 KB. Empirically, ~1500 triangles with
-    # InlineTextBackend fits comfortably; we pick 1500 to be safe.
-    target_tris = 1500
-    pts_d, tris_d = _decimate_triangles(pts, tris, target=target_tris, seed=0)
+    # Decimate with topology-preserving edge collapse. Target 2500 triangles
+    # (budget expanded to 3000 in v1.2): the random-drop decimation used in
+    # v1.1 produced a non-watertight "swiss-cheese" surface with thousands
+    # of hole edges; we now use quadric decimation via pyvista/VTK.
+    print(f"  input: {pts.shape[0]} points, {tris.shape[0]} triangles")
+    target_tris = 2500
+    pts_d, tris_d = _decimate_triangles(pts, tris, target=target_tris)
 
     mesh_tri = meshio.Mesh(points=pts_d, cells=[("triangle", tris_d)])
     doc = fml.Document.from_meshio(mesh_tri, name="femur_bodyparts3d")
@@ -235,14 +255,13 @@ def fetch_bodyparts3d_femur() -> Path | None:
     doc.write(out)
     size = out.stat().st_size
     print(f"  wrote {out} ({pts_d.shape[0]} points, {tris_d.shape[0]} triangles, {size:,} bytes)")
-    if size > MAX_BUNDLE_BYTES:
+    if size > MAX_BP3D_BYTES:
         print(
-            f"  WARNING: file exceeds {MAX_BUNDLE_BYTES:,}-byte budget; "
+            f"  WARNING: file exceeds {MAX_BP3D_BYTES:,}-byte budget; "
             "retrying with a coarser decimation.",
             file=sys.stderr,
         )
-        # Try again with half the triangles.
-        pts_d, tris_d = _decimate_triangles(pts, tris, target=target_tris // 2, seed=0)
+        pts_d, tris_d = _decimate_triangles(pts, tris, target=target_tris // 2)
         mesh_tri = meshio.Mesh(points=pts_d, cells=[("triangle", tris_d)])
         doc = fml.Document.from_meshio(mesh_tri, name="femur_bodyparts3d")
         doc.write(out)

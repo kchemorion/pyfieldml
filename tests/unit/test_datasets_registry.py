@@ -147,3 +147,45 @@ def test_femur_is_anatomical_not_cylindrical() -> None:
         f"Distal condyles ({distal_r:.3f}) not wider than shaft ({mid_r:.3f}) — "
         "femur likely lacks condyle bulges"
     )
+
+
+def test_bodyparts3d_femur_is_watertight() -> None:
+    """The BP3D femur should be one connected component (not swiss-cheese).
+
+    Random-subsample decimation in v1.1 left the surface riddled with
+    holes (thousands of boundary edges, multiple disconnected fragments).
+    After switching to topology-preserving edge-collapse decimation, the
+    surface must be essentially a single connected component.
+    """
+    if "femur_bodyparts3d" not in datasets.list():
+        pytest.skip("femur_bodyparts3d not bundled (fetch failed during generation)")
+
+    import scipy.sparse
+    import scipy.sparse.csgraph
+
+    doc = datasets.load_femur_bodyparts3d()
+    conn_ev = doc.evaluators["coordinates.connectivity"]
+    assert isinstance(conn_ev, ParameterEvaluator)
+    conn = conn_ev.as_ndarray().astype(np.int64) - 1  # 0-indexed
+
+    coords_ev = doc.evaluators["coordinates"]
+    assert isinstance(coords_ev, ParameterEvaluator)
+    n_points = coords_ev.as_ndarray().shape[0]
+
+    # Build the vertex adjacency graph from triangle edges.
+    row: list[int] = []
+    col: list[int] = []
+    for tri in conn:
+        for i, j in ((0, 1), (1, 2), (0, 2)):
+            row.append(int(tri[i]))
+            col.append(int(tri[j]))
+            row.append(int(tri[j]))
+            col.append(int(tri[i]))
+    adj = scipy.sparse.coo_matrix(
+        (np.ones(len(row), dtype=np.float64), (row, col)), shape=(n_points, n_points)
+    ).tocsr()
+    n_components, _ = scipy.sparse.csgraph.connected_components(adj)
+
+    # A watertight femur is 1 component. Allow up to 3 for tiny decimation
+    # artifacts; if it's higher the surface has been shredded again.
+    assert n_components <= 3, f"Femur has {n_components} disconnected parts"
