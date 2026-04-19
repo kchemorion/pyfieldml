@@ -1,0 +1,11 @@
+# Packages pre-installed into the Pyodide kernel by piplite.
+#
+# pyfieldml is listed first so its import-time plugin auto-registration
+# (meshio / pyvista bridges) runs before the downstream packages are
+# exercised by the tutorial notebooks.
+pyfieldml
+numpy>=1.26
+h5py>=3.10
+meshio>=5.3
+lxml>=5.0
+scipy>=1.11
