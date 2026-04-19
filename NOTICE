@@ -45,3 +45,24 @@ their respective licenses, distinct from the Apache 2.0 license of pyfieldml:
   Japan License (https://creativecommons.org/licenses/by-sa/2.1/jp/). The
   bundled FieldML conversion preserves this license; downstream redistributors
   must comply with CC-BY-SA 2.1 JP terms for this file specifically.
+
+- vertebra_l3.fieldml: derived from BodyParts3D element FJ3159 (lumbar
+  vertebra). Same provenance and CC-BY-SA 2.1 JP terms as
+  femur_bodyparts3d.fieldml above.
+
+- scapula.fieldml: derived from BodyParts3D element FJ3279 (left scapula,
+  FMA13396). Same provenance and CC-BY-SA 2.1 JP terms as
+  femur_bodyparts3d.fieldml above.
+
+- tibia_left.fieldml: derived from BodyParts3D element FJ3282 (left tibia,
+  FMA24478). Same provenance and CC-BY-SA 2.1 JP terms as
+  femur_bodyparts3d.fieldml above.
+
+- hip_bone_left.fieldml: derived from BodyParts3D element FJ3152 (hip bone,
+  FMA16586). Same provenance and CC-BY-SA 2.1 JP terms as
+  femur_bodyparts3d.fieldml above.
+
+- skull.fieldml: derived from the 43 BodyParts3D elements aggregated under
+  FMA46565 (skull). The sub-parts were union-merged into a single vertex
+  array, then decimated. Same provenance and CC-BY-SA 2.1 JP terms as
+  femur_bodyparts3d.fieldml above.
