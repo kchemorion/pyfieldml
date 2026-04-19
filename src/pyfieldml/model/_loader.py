@@ -205,6 +205,25 @@ def _load_bindings(bindings_elem: etree._Element | None, region: Region) -> Bind
     return BindingTable(bs)
 
 
+def _safe_href_path(base_dir: Path, href: str) -> Path:
+    """Resolve href relative to base_dir. Reject traversal outside base_dir.
+
+    Guards against malicious FieldML XML references like
+    ``<DataResourceHref xlink:href="../../etc/passwd" .../>`` which would
+    otherwise let a document read arbitrary files off the host filesystem
+    when loaded with ``pyfieldml.read(...)``.
+    """
+    candidate = (base_dir / href).resolve()
+    base = base_dir.resolve()
+    try:
+        candidate.relative_to(base)
+    except ValueError:
+        raise FieldMLParseError(
+            f"Refusing to resolve href {href!r}: escapes base_dir {base}"
+        ) from None
+    return candidate
+
+
 def _load_parameter_data(elem: etree._Element, *, base_dir: Path) -> Any:
     """Discriminate on the storage-format child element."""
     inline = elem.find(".//DataResourceString")
@@ -218,6 +237,10 @@ def _load_parameter_data(elem: etree._Element, *, base_dir: Path) -> Any:
         ds = elem.find(".//DataSource")
         shape, dtype = _parse_data_source(ds)
         href = href_node.get("{http://www.w3.org/1999/xlink}href", "")
+        # Validate the resolved path stays inside base_dir, but keep the
+        # backend's (base_dir, href) pair intact so round-trip writing of
+        # relative hrefs still works.
+        _safe_href_path(base_dir, href)
         return ExternalTextBackend(base_dir=base_dir, href=href, shape=shape, dtype=dtype)
 
     h5_node = elem.find(".//DataResourceHref[@format='HDF5']")
@@ -225,9 +248,10 @@ def _load_parameter_data(elem: etree._Element, *, base_dir: Path) -> Any:
         ds = elem.find(".//DataSource")
         href = h5_node.get("{http://www.w3.org/1999/xlink}href", "")
         dataset = ds.get("location", "/") if ds is not None else "/"
+        safe_path = _safe_href_path(base_dir, href)
         if elem.find(".//DOKArrayData") is not None:
-            return Hdf5DOKBackend(path=base_dir / href, group=dataset)
-        return Hdf5DenseBackend(path=base_dir / href, dataset=dataset)
+            return Hdf5DOKBackend(path=safe_path, group=dataset)
+        return Hdf5DenseBackend(path=safe_path, dataset=dataset)
 
     raise FieldMLParseError(
         f"ParameterEvaluator {elem.get('name')!r}: unrecognized data-resource shape"

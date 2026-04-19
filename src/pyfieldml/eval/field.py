@@ -156,6 +156,12 @@ class Field:
 
     def sample(self, points: ArrayLike) -> np.ndarray:
         """Sample the field at physical points. Points outside the mesh return NaN."""
+        if self._is_hermite_line():
+            raise NotImplementedError(
+                "Field.sample is not supported on Hermite meshes in v1.0.x. "
+                "Use Field.evaluate(element=..., xi=...) with a known element + xi instead. "
+                "A Hermite-aware spatial locator is planned for v1.1."
+            )
         from pyfieldml.eval.locate import SpatialLocator
 
         points_arr = np.asarray(points, dtype=np.float64)

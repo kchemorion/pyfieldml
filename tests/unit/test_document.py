@@ -32,3 +32,26 @@ def test_document_validate_raises_on_invalid_input(fixtures_dir: Path) -> None:
     doc = Document.from_file(fixtures_dir / "invalid_no_name.fieldml")
     with pytest.raises(FieldMLError):
         doc.validate()
+
+
+def test_from_string_parses_minimal_document() -> None:
+    doc = Document.from_string(
+        b'<?xml version="1.0"?><Fieldml version="0.5.0">'
+        b'<Region name="t"><BooleanType name="b"/></Region></Fieldml>'
+    )
+    assert doc.source_version == "0.5.0"
+    assert "b" in doc.booleans
+
+
+def test_from_string_accepts_str_input() -> None:
+    doc = Document.from_string(
+        '<?xml version="1.0"?><Fieldml version="0.5.0">'
+        '<Region name="r"><BooleanType name="flag"/></Region></Fieldml>'
+    )
+    assert doc.region.name == "r"
+    assert "flag" in doc.booleans
+
+
+def test_from_string_raises_on_missing_region() -> None:
+    with pytest.raises(FieldMLError):
+        Document.from_string(b'<?xml version="1.0"?><Fieldml version="0.5.0"/>')

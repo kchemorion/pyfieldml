@@ -7,6 +7,7 @@ For v0.4: only Lagrange meshes produced by add_lagrange_mesh are supported.
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -163,3 +164,13 @@ def _writer(path: Any, mesh: meshio.Mesh, **_kwargs: Any) -> None:
 
     doc = _fml.Document.from_meshio(mesh, name="imported")
     doc.write(path)
+
+
+# Auto-register with meshio on import so ``meshio.read("x.fieldml")`` works
+# without requiring a manual ``_register()`` call. meshio's plugin mechanism
+# (``register_format``) is not entry-point-driven, so the canonical hook-point
+# is this module's import. Silent no-op if meshio isn't installed — the module
+# is only reachable once the user has already imported it — and defensive
+# against a partially-initialised meshio (never block ``import pyfieldml``).
+with contextlib.suppress(Exception):  # pragma: no cover
+    _register()

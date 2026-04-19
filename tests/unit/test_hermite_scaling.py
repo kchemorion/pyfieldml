@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 import pyfieldml as fml
 from pyfieldml.builders.mesh import add_hermite_mesh
@@ -90,3 +91,16 @@ def test_hermite_line_scale_factors_affect_derivative_contribution() -> None:
     assert abs((v_scaled - v_unscaled) - diff_expected) < 1e-12, (
         f"expected diff {diff_expected}, got {v_scaled - v_unscaled}"
     )
+
+
+def test_hermite_line_sample_raises_not_implemented() -> None:
+    """Field.sample must refuse Hermite meshes cleanly in v1.0.x (no shape-mismatch crash)."""
+    nodes = np.array([[0.0], [5.0], [11.0]])
+    derivs = np.array([[1.0], [2.0], [1.5]])
+    conn = np.array([[1, 2], [2, 3]], dtype=np.int64)
+    doc = _build_hermite_line_doc(nodes, derivs, conn)
+    coords = doc.field("coordinates")
+
+    query = np.array([[2.5], [7.5]])
+    with pytest.raises(NotImplementedError, match="Hermite"):
+        coords.sample(query)

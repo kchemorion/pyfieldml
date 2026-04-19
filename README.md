@@ -15,7 +15,7 @@ FieldML is the [Physiome Project](https://physiomeproject.org/)'s declarative ma
 > [CHANGELOG](CHANGELOG.md) for what's in and what's deferred to later minor
 > releases.
 
-## What it will do (v1.0)
+## What it does (v1.0)
 
 - Full FieldML 0.5 read + write, round-trip validated against the C++ reference test suite
 - Legacy read of FieldML 0.3 and 0.4 (auto up-conversion to 0.5)
@@ -25,8 +25,7 @@ FieldML is the [Physiome Project](https://physiomeproject.org/)'s declarative ma
 - Interop: `meshio` (two-way), PyVista (`doc.plot()`, `doc.explore()`), XDMF, `scikit-fem`, OpenSim-compatible asset export
 - CLI: `pyfieldml inspect | validate | convert | plot | lint | diff`
 - Curated model zoo: `pyfieldml.datasets.load_femur()`, `load_rectus_femoris()`, `load_myocardium()`
-- Docs site with `jupyter-lite` in-browser runnable notebooks
-- JOSS paper submitted alongside v1.0
+- JOSS paper in preparation
 
 ## License
 
