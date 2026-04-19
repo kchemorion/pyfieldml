@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from lxml import etree
 
@@ -22,6 +22,8 @@ from pyfieldml.model.types import (
 )
 
 if TYPE_CHECKING:
+    import meshio
+
     from pyfieldml.eval.field import Field
 
 PathLike = str | Path
@@ -111,3 +113,48 @@ class Document:
     def validate(self) -> None:
         """Validate the document against the bundled FieldML 0.5 XSD."""
         validate_tree(self._parsed.tree)
+
+    def to_meshio(self) -> meshio.Mesh:
+        """Convert this Document to a meshio.Mesh. Requires pyfieldml[meshio]."""
+        try:
+            from pyfieldml.interop.meshio import to_meshio
+        except ImportError as exc:
+            raise ImportError(
+                "to_meshio() requires the [meshio] extra: pip install pyfieldml[meshio]"
+            ) from exc
+        return to_meshio(self)
+
+    @classmethod
+    def from_meshio(cls, mesh: meshio.Mesh, *, name: str = "imported") -> Document:
+        """Convert a meshio.Mesh to a Document. Requires pyfieldml[meshio]."""
+        try:
+            from pyfieldml.interop.meshio import from_meshio
+        except ImportError as exc:
+            raise ImportError(
+                "from_meshio() requires the [meshio] extra: pip install pyfieldml[meshio]"
+            ) from exc
+        doc: Document = from_meshio(mesh, name=name)
+        return doc
+
+    def plot(self, **kwargs: Any) -> Any:
+        """Render this Document via PyVista. Requires pyfieldml[viz]."""
+        try:
+            from pyfieldml.interop.pyvista import plot_doc
+        except ImportError as exc:
+            raise ImportError(
+                "doc.plot() requires the [viz] extra: pip install pyfieldml[viz]"
+            ) from exc
+        return plot_doc(self, **kwargs)
+
+    def explore(self) -> Any:
+        """Open an interactive Jupyter widget to browse the evaluator graph.
+
+        Requires the [viz] extra: ``pip install pyfieldml[viz]``.
+        """
+        try:
+            from pyfieldml.viz.explorer import explore
+        except ImportError as exc:
+            raise ImportError(
+                "doc.explore() requires the [viz] extra: pip install pyfieldml[viz]"
+            ) from exc
+        return explore(self)
