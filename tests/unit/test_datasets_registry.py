@@ -77,8 +77,10 @@ def test_load_rectus_femoris_has_fiber_field() -> None:
     assert isinstance(fibers, ParameterEvaluator)
     arr = fibers.as_ndarray()
     assert arr.shape[1] == 3  # 3-vector per node
-    # All fibers along +z
-    np.testing.assert_allclose(arr[:, 2], 1.0, atol=1e-12)
+    # Bipennate field: z-component dominates (cos of pennation angle,
+    # peaking ~18 deg so z >= cos(18 deg) ~= 0.95), vectors are unit length.
+    assert (arr[:, 2] >= np.cos(np.deg2rad(20.0))).all()
+    np.testing.assert_allclose(np.linalg.norm(arr, axis=1), 1.0, atol=1e-9)
 
 
 def test_load_bunny_stanford() -> None:

@@ -314,44 +314,12 @@ def fig3_muscle_fiber_workflow() -> None:
     d = datasets.load("rectus_femoris")
 
     coords_xyz = d.evaluators["coordinates"].as_ndarray().astype(np.float64)
-    fiber_raw = d.evaluators["fiber_direction"].as_ndarray().astype(np.float64)
+    fiber = d.evaluators["fiber_direction"].as_ndarray().astype(np.float64)
 
-    # The bundled rectus_femoris stores a uniform [0, 0, 1] fibre direction
-    # (long-axis). For a visually informative figure we synthesise a gently
-    # pennate perturbation that converges toward the two tendon ends while
-    # preserving the stored direction at the muscle belly. This is a
-    # visualisation-only enhancement; the scientific claim in the caption
-    # is that the *bundled fiber field* drives the workflow, which remains
-    # true -- the stored direction seeds the computation.
-    z = coords_xyz[:, 2]
-    z_min, z_max = float(z.min()), float(z.max())
-    z_mid = 0.5 * (z_min + z_max)
-    z_half = 0.5 * (z_max - z_min)
-    # t in [-1, 1], 0 at belly, +/-1 at the ends
-    t = (z - z_mid) / max(z_half, 1e-12)
-    # Pennation magnitude peaks near the ends; radial inward direction.
-    r_xy = coords_xyz[:, :2]
-    r_norm = np.linalg.norm(r_xy, axis=1, keepdims=True)
-    r_hat = np.divide(r_xy, r_norm, out=np.zeros_like(r_xy), where=r_norm > 1e-9)
-    # Pennation angle envelope: 0 at belly, ~18 degrees near the ends.
-    theta = np.deg2rad(18.0) * (t**2) * np.sign(t)
-    # In-plane radial pennation component (points radially *inward*).
-    pennation_xy = -np.cos(theta)[:, None] * 0.0  # placeholder, rebuilt below
-    # Build fibres so that at t=+/-1 they tilt toward the axis; at t=0 they
-    # lie along z. We rotate the [0,0,1] stored direction toward the
-    # negative radial direction by `theta` times sign(t):
-    axis_component = np.cos(theta)
-    radial_component = -np.sin(np.abs(theta)) * np.sign(t)
-    fiber = np.empty_like(fiber_raw)
-    fiber[:, 0] = radial_component * r_hat[:, 0]
-    fiber[:, 1] = radial_component * r_hat[:, 1]
-    fiber[:, 2] = axis_component
-    # Normalise (already unit length by construction, but belt-and-braces)
-    fiber /= np.linalg.norm(fiber, axis=1, keepdims=True)
-    # Unused placeholder removed
-    del pennation_xy
-
-    # Alignment with long axis (0..1) -- the scalar we'll colour the glyphs by.
+    # The bundled rectus_femoris stores a bipennate fibre field that
+    # converges on the central aponeurosis (z-axis) with pennation angle
+    # peaking ~18 degrees near the surface of the muscle belly and
+    # tapering to zero at the tendon ends.
     alignment = np.abs(fiber[:, 2])
 
     grid = to_pyvista(d)
@@ -378,7 +346,10 @@ def fig3_muscle_fiber_workflow() -> None:
 
     # Streamlines seeded from a cloud of points inside the muscle belly.
     rng = np.random.default_rng(42)
-    belly_z = z_mid + 0.0 * z_half
+    z = coords_xyz[:, 2]
+    z_mid = 0.5 * (float(z.min()) + float(z.max()))
+    z_half = 0.5 * (float(z.max()) - float(z.min()))
+    belly_z = z_mid
     n_seed = 90
     seed_t = rng.uniform(-0.35, 0.35, size=n_seed)
     seed_r = 0.7 * (bounds[1] - bounds[0]) * 0.5 * np.sqrt(rng.uniform(0, 1, size=n_seed))
@@ -422,7 +393,8 @@ def fig3_muscle_fiber_workflow() -> None:
     # Interpret contraction as shortening along the fiber direction, with
     # magnitude proportional to distance-from-end (zero at tendons, peak in
     # belly) so tendons act as anchors.
-    belly_weight = (1.0 - t**2)[:, None]
+    t_norm = (coords_xyz[:, 2] - z_mid) / max(z_half, 1e-12)
+    belly_weight = (1.0 - t_norm**2)[:, None]
     displacement = -contraction * belly_weight * fiber * bounds_diag * 0.5
     displaced.points = displaced.points + displacement
     displaced["displacement_mag"] = np.linalg.norm(displacement, axis=1)

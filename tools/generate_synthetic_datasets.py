@@ -287,8 +287,27 @@ def generate_synthetic_rectus_femoris(seed: int = 43) -> None:
     tri = Delaunay(points)
     tets = tri.simplices
 
-    # Fiber direction: aligned with +z at every node.
-    fibers = np.tile([0.0, 0.0, 1.0], (points.shape[0], 1))
+    # Fiber direction: a deterministic bipennate pattern converging on the
+    # central z-axis (rectus femoris is bipennate around a central
+    # aponeurosis). Fibers at the axis run along +z; fibers near the
+    # surface angle inward by up to `alpha_max`, tapering to zero at the
+    # tendons so the field is continuous at the tips.
+    alpha_max = np.deg2rad(18.0)
+    fibers = np.zeros_like(points)
+    for i, (x, y, z) in enumerate(points):
+        r = float(np.hypot(x, y))
+        if r < 1e-9:
+            fibers[i] = [0.0, 0.0, 1.0]
+            continue
+        r_local = float(envelope_radius(np.array([z]))[0]) or 1e-9
+        rho = min(r / r_local, 1.0)
+        taper = float(np.sin(np.pi * z / length))
+        angle = alpha_max * rho * taper
+        fibers[i] = [
+            -np.sin(angle) * x / r,
+            -np.sin(angle) * y / r,
+            np.cos(angle),
+        ]
 
     r = Region(name="rectus_femoris")
     add_lagrange_mesh(

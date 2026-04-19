@@ -32,7 +32,7 @@ EXPECTED_FINGERPRINTS: dict[str, str] = {
     "femur": "47a2ca89aceabe335678858db061c6edad27c0f79e09a6976bfaaece608d6af1",
     "femur_bodyparts3d": "729dc198259083e6a90c3d794697c96feda7efd559a88dbb16af5a30e983db2d",
     "hip_bone_left": "f9dbec3dca67fb918b59351dc74a49ae62c57c611817bc701218338f1f26cbbe",
-    "rectus_femoris": "a0109855616f3210e4aa1eeaef4186fa10d4752de832030a93b316e69bc2f306",
+    "rectus_femoris": "56e367a9501905e48126ab9ad429c8ce231f9fcd3362bf65faff6c69b6e1c557",
     "scapula": "e98878650dbd1ae03c79df0126b1c78dad9742792cf049b790c0892f9ecdfede",
     "skull": "b37d3ee6464fa041d2efabeaf50690c2385501f7b3ae387d4cd7b9ab4c30b249",
     "tibia_left": "32a4bfe9f8039678dc19ab2e67b6a3ebf1de6265ebc25822e17c796ca529fea8",
