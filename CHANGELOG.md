@@ -6,6 +6,36 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-04-19
+
+### Fixed
+- `Document.from_string` now actually parses in-memory XML bytes/strings
+  instead of raising `NotImplementedError`.
+- `Field.sample` on Hermite meshes now raises a clear `NotImplementedError`
+  with guidance ("use `Field.evaluate` with a known element + xi") instead
+  of a cryptic shape-mismatch crash in the spatial locator.
+- Auto-register the meshio plugin when `pyfieldml` is imported, so
+  `meshio.read("x.fieldml")` works out of the box without requiring a
+  manual `pyfieldml.interop.meshio._register()` call.
+- Path-traversal guard in the DOM loader: external `href` attributes for
+  HDF5 / text data resources and `<Import>` directives are resolved against
+  the document's base directory and rejected if they escape. Prevents
+  malicious FieldML XML from reading arbitrary files.
+- Bundled-resource accessors (`get_xsd_path`, `get_stdlib_path`, bundled
+  dataset paths) now return stable on-disk paths that survive the
+  `importlib.resources.as_file` context. Makes `pyfieldml` safe to use in
+  zipapp / zipimport deployments.
+
+### Documentation
+- Rewrote `docs/index.md` and `docs/getting-started.md` for v1.0 (prior
+  versions still referenced "pre-alpha" / Phase-0 scope).
+- Expanded `docs/api/index.md` from DOM-only to cover every public
+  subpackage (Document, Field, builders, interop, validation, datasets).
+- Removed over-claims about `jupyter-lite` in README and JOSS paper draft
+  (deferred to a later minor release).
+- Corrected the `04_muscle_fibers.ipynb` notebook to use `.vtu` output
+  (matching what `export_fiber_lines` actually writes).
+
 ## [1.0.0] - 2026-04-19
 
 ### Summary
@@ -215,7 +245,8 @@ scope.
 - Community files: CONTRIBUTING, CODE_OF_CONDUCT, CHANGELOG, MAINTAINING,
   issue + PR templates.
 
-[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/kchemorion/pyfieldml/releases/tag/v1.0.1
 [1.0.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v1.0.0
 [0.5.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.5.0
 [0.4.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.4.0
