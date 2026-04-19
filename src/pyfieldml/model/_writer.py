@@ -1,4 +1,11 @@
-"""Model → DOM tree writer."""
+"""Model → DOM tree writer.
+
+Conforming to the FieldML 0.5 library convention, the root ``<Fieldml>``
+element carries the ``xmlns:xsi`` namespace declaration plus the
+``xsi:noNamespaceSchemaLocation`` hint pointing at the published XSD. This
+matches the output of the C++ FieldML-API reference writer and keeps
+cross-implementation round-trips shape-equivalent at the XML level.
+"""
 
 from __future__ import annotations
 
@@ -26,9 +33,22 @@ from pyfieldml.model.types import (
 
 FIELDML_VERSION = "0.5.0"
 
+# XSD schemaLocation + xsi namespace, matching the FieldML 0.5 reference
+# library's writer output. See module docstring for the rationale.
+_XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
+_FIELDML_XSD_URL = "http://www.fieldml.org/resources/xml/0.5/FieldML_0.5.xsd"
+
 
 def region_to_tree(region: Region) -> etree._ElementTree:
-    root = etree.Element("Fieldml", {"version": FIELDML_VERSION})
+    nsmap = {"xsi": _XSI_NS}
+    root = etree.Element(
+        "Fieldml",
+        attrib={
+            "version": FIELDML_VERSION,
+            f"{{{_XSI_NS}}}noNamespaceSchemaLocation": _FIELDML_XSD_URL,
+        },
+        nsmap=nsmap,
+    )
     region_elem = etree.SubElement(root, "Region", {"name": region.name})
 
     for name in region.objects:
