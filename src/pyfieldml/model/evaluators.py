@@ -76,9 +76,14 @@ class ReferenceEvaluator(Evaluator):
 
 @dataclass
 class AggregateEvaluator(Evaluator):
-    """Assemble a value from per-component sub-evaluators."""
+    """Assemble a value from per-component sub-evaluators.
 
-    components: list[Evaluator] = field(default_factory=list)
+    ``components`` is typed ``Sequence[Evaluator]`` so that callers can pass a
+    list of subclasses (``list[ConstantEvaluator]`` etc.) without tripping
+    ``list``'s invariance.
+    """
+
+    components: Sequence[Evaluator] = field(default_factory=list)
 
 
 @dataclass

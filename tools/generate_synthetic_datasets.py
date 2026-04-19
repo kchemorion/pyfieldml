@@ -20,173 +20,209 @@ OUT = Path(__file__).parents[1] / "src/pyfieldml/datasets/_bundled"
 OUT.mkdir(parents=True, exist_ok=True)
 
 
-def _femur_envelope(pt: np.ndarray) -> bool:
-    """Test whether ``pt = (x, y, z)`` lies inside the synthetic-femur CSG envelope.
+# ---------------- Femur CSG primitives ----------------
+#
+# All coordinates in metres, adult-femur-scale:
+#   - total length ~ 0.40 m
+#   - head radius ~ 0.022 m
+# The femur runs along +z, with the proximal (head) end at high z and the
+# distal (condyles) end at low z.
 
-    The femur is assembled from primitives in the local frame:
+_SHAFT_R = 0.013
+_SHAFT_Z_LO = 0.05
+_SHAFT_Z_HI = 0.35
 
-    * a shaft along +z on ``z in [0, 0.4]``, whose radius swells at the
-      proximal trochanter and distal condyles;
-    * a neck cylinder angling medially from the proximal shaft to a head;
-    * a spherical femoral head at the end of the neck;
-    * two distal condyle lobes offset in ``+x / -x`` near ``z = 0.41``.
+_HEAD_C = np.array([0.035, 0.0, 0.41])
+_HEAD_R = 0.022
+
+_NECK_C = np.array([0.020, 0.0, 0.385])
+_NECK_AXES = np.array([0.020, 0.010, 0.022])
+
+_GT_C = np.array([-0.020, 0.0, 0.40])
+_GT_AXES = np.array([0.014, 0.012, 0.020])
+
+_LT_C = np.array([0.010, -0.008, 0.39])
+_LT_AXES = np.array([0.007, 0.006, 0.010])
+
+_MC_C = np.array([0.015, 0.0, 0.03])
+_MC_AXES = np.array([0.018, 0.020, 0.015])
+
+_LC_C = np.array([-0.015, 0.0, 0.03])
+_LC_AXES = np.array([0.018, 0.020, 0.015])
+
+
+def _inside_union(points: np.ndarray) -> np.ndarray:
+    """Return a boolean mask: True for points inside ANY of the anatomical parts.
+
+    Vectorised over an ``(N, 3)`` array of query points so the rejection
+    sampler and the tet-centroid filter can both call it on big batches.
     """
-    x, y, z = pt[0], pt[1], pt[2]
+    x, y, z = points[:, 0], points[:, 1], points[:, 2]
+    inside = np.zeros(len(points), dtype=bool)
 
-    # Shaft: z in [0, 0.4], radius modulated axially.
-    if 0.0 <= z <= 0.4:
-        # Swell at proximal greater trochanter (wide) and distal condyle region.
-        r_shaft = (
-            0.012
-            + 0.005 * np.exp(-((z - 0.05) ** 2) / 0.001)
-            + 0.012 * np.exp(-((z - 0.38) ** 2) / 0.0005)
-        )
-        # Greater trochanter: extra bulge on +x side near z~0.02
-        # (modelled as a radial boost when x > 0 and z in trochanter range).
-        trochanter_boost = 0.0
-        if x > 0 and 0.0 <= z <= 0.06:
-            trochanter_boost = 0.008 * np.exp(-(((z - 0.02) ** 2) / 0.0008 + (y**2) / 0.0006))
-        # Lesser trochanter: small bump on -x side, z~0.04
-        lesser_boost = 0.0
-        if x < 0 and 0.02 <= z <= 0.06:
-            lesser_boost = 0.004 * np.exp(-(((z - 0.04) ** 2) / 0.0003 + (y**2) / 0.0004))
-        rr = np.sqrt(x * x + y * y)
-        if rr <= r_shaft + trochanter_boost + lesser_boost:
-            return True
+    # Shaft: truncated cylinder along +z.
+    inside |= (np.sqrt(x**2 + y**2) < _SHAFT_R) & (z > _SHAFT_Z_LO) & (z < _SHAFT_Z_HI)
 
-    # Femoral neck: a tapered cylinder from (0, 0, 0.01) to head centre.
-    # Head centre ~ (0.03, 0, -0.02); direction roughly (+x, 0, -z).
-    head_centre = np.array([0.03, 0.0, -0.02])
-    neck_start = np.array([0.005, 0.0, 0.015])
-    neck_vec = head_centre - neck_start
-    neck_len = float(np.linalg.norm(neck_vec))
-    neck_dir = neck_vec / neck_len
-    rel = pt - neck_start
-    t = float(np.dot(rel, neck_dir))
-    if 0.0 <= t <= neck_len:
-        perp = rel - t * neck_dir
-        if float(np.linalg.norm(perp)) <= 0.011:
-            return True
+    # Femoral head: sphere at proximal end, offset medially.
+    inside |= np.linalg.norm(points - _HEAD_C, axis=1) < _HEAD_R
 
-    # Femoral head: sphere.
-    if float(np.linalg.norm(pt - head_centre)) <= 0.016:
-        return True
+    # Femoral neck: ellipsoid bridging shaft and head.
+    inside |= (((points - _NECK_C) / _NECK_AXES) ** 2).sum(axis=1) < 1.0
 
-    # Distal condyles: two spheres at +/-x near z=0.41.
-    for cx in (0.018, -0.018):
-        centre = np.array([cx, 0.0, 0.41])
-        if float(np.linalg.norm(pt - centre)) <= 0.017:
-            return True
+    # Greater trochanter: prolate ellipsoid lateral to the neck-shaft junction.
+    inside |= (((points - _GT_C) / _GT_AXES) ** 2).sum(axis=1) < 1.0
 
-    return False
+    # Lesser trochanter: smaller ellipsoid medial side, slightly below head.
+    inside |= (((points - _LT_C) / _LT_AXES) ** 2).sum(axis=1) < 1.0
+
+    # Medial condyle (distal).
+    inside |= (((points - _MC_C) / _MC_AXES) ** 2).sum(axis=1) < 1.0
+
+    # Lateral condyle (distal).
+    inside |= (((points - _LC_C) / _LC_AXES) ** 2).sum(axis=1) < 1.0
+
+    return inside
 
 
-def _femur_bmd(pt: np.ndarray) -> float:
-    """Young's modulus proxy (Pa): denser at cortical surface, softer in marrow."""
-    x, y = pt[0], pt[1]
-    # Shaft radial distance to local axis. Assume axis near origin for shaft.
-    rr = float(np.sqrt(x * x + y * y))
-    # Cortical-like high modulus at outer shaft radius, trabecular/cancellous
-    # interior. Below is a smooth radial ramp with a boost in head/condyle.
-    base = 1.2e9 * min(rr / 0.02, 1.0) + 2.0e8
-    # Dense cortical shell around femoral head and condyles (proxy).
-    head_centre = np.array([0.03, 0.0, -0.02])
-    if float(np.linalg.norm(pt - head_centre)) <= 0.018:
-        base += 3.0e8
-    for cx in (0.018, -0.018):
-        centre = np.array([cx, 0.0, 0.41])
-        if float(np.linalg.norm(pt - centre)) <= 0.019:
-            base += 3.0e8
-    return base
+def _ellipsoid_surface_samples(
+    centre: np.ndarray,
+    axes: np.ndarray,
+    n_phi: int,
+    n_theta: int,
+    phi_inset: float = 0.3,
+) -> list[list[float]]:
+    """Sample points on the surface of an axis-aligned ellipsoid.
+
+    ``phi_inset`` trims the polar caps so we don't double-stack samples on
+    the z-axis; Delaunay dislikes near-coincident points.
+    """
+    out: list[list[float]] = []
+    for phi in np.linspace(phi_inset, np.pi - phi_inset, n_phi):
+        for theta in np.linspace(0.0, 2 * np.pi, n_theta, endpoint=False):
+            p = centre + axes * np.array(
+                [np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)]
+            )
+            out.append(p.tolist())
+    return out
+
+
+def _femur_boundary_seeds() -> np.ndarray:
+    """Return boundary-surface seed points so Delaunay traces the CSG shape.
+
+    Without these, Delaunay tets would only span the convex hull of the
+    rejection-sampled interior cloud and the greater trochanter / condyles
+    / head wouldn't be outlined properly.
+    """
+    boundary: list[list[float]] = []
+
+    # Shaft: 7 rings of 7 points along the mid-shaft.
+    for z_val in np.linspace(0.06, 0.34, 7):
+        for theta in np.linspace(0.0, 2 * np.pi, 7, endpoint=False):
+            boundary.append([_SHAFT_R * np.cos(theta), _SHAFT_R * np.sin(theta), float(z_val)])
+
+    # Femoral head surface.
+    boundary.extend(_ellipsoid_surface_samples(_HEAD_C, np.full(3, _HEAD_R), n_phi=4, n_theta=7))
+    # One extra pole point to anchor the very top of the head.
+    boundary.append((_HEAD_C + np.array([0.0, 0.0, _HEAD_R])).tolist())
+
+    # Greater trochanter surface.
+    boundary.extend(_ellipsoid_surface_samples(_GT_C, _GT_AXES, n_phi=3, n_theta=6))
+
+    # Lesser trochanter surface (smaller — fewer samples).
+    boundary.extend(_ellipsoid_surface_samples(_LT_C, _LT_AXES, n_phi=3, n_theta=5, phi_inset=0.4))
+
+    # Condyle surfaces.
+    boundary.extend(_ellipsoid_surface_samples(_MC_C, _MC_AXES, n_phi=4, n_theta=6))
+    boundary.extend(_ellipsoid_surface_samples(_LC_C, _LC_AXES, n_phi=4, n_theta=6))
+
+    return np.asarray(boundary, dtype=np.float64)
+
+
+def _femur_youngs_modulus(points: np.ndarray) -> np.ndarray:
+    """Vectorised Young's modulus proxy (Pa): dense cortical, soft trabecular.
+
+    A smooth radial ramp — stiffer near the cortical surface of the shaft,
+    softer toward the marrow cavity — with small extra boosts inside the
+    femoral head and condyles where cortical shell is thicker.
+    """
+    x, y = points[:, 0], points[:, 1]
+    rr = np.sqrt(x * x + y * y)
+    base = 1.2e9 * np.minimum(rr / 0.02, 1.0) + 2.0e8
+
+    head_boost = np.where(np.linalg.norm(points - _HEAD_C, axis=1) <= _HEAD_R + 0.002, 3.0e8, 0.0)
+    mc_boost = np.where(
+        (((points - _MC_C) / (_MC_AXES + 0.002)) ** 2).sum(axis=1) <= 1.0, 3.0e8, 0.0
+    )
+    lc_boost = np.where(
+        (((points - _LC_C) / (_LC_AXES + 0.002)) ** 2).sum(axis=1) <= 1.0, 3.0e8, 0.0
+    )
+    return np.asarray(base + head_boost + mc_boost + lc_boost, dtype=np.float64)
 
 
 def generate_synthetic_femur(seed: int = 42) -> None:
-    """Anatomical-synthetic femur: CSG-assembled shaft + head + neck + trochanters + condyles.
+    """Anatomically-plausible synthetic femur (CSG union of parts).
 
-    The mesh is produced by rejection-sampling points inside the CSG envelope
-    defined by :func:`_femur_envelope`, plus a thin layer of boundary seed
-    points so that the Delaunay tetrahedralisation traces the external shape
-    instead of the convex hull of the interior samples alone.
+    Parts:
+      - Shaft: truncated cylinder along z axis, z in [0.05, 0.35] m, radius 0.013.
+      - Femoral head: sphere at proximal end, offset medially.
+          center: (0.035, 0, 0.41), radius: 0.022
+      - Femoral neck: cylinder connecting head center to shaft proximal end.
+      - Greater trochanter: prolate ellipsoid lateral to neck-shaft junction.
+          center: (-0.020, 0, 0.40), axes: (0.014, 0.012, 0.020)
+      - Lesser trochanter: smaller ellipsoid medial side, slightly below head.
+          center: (0.010, -0.008, 0.39), axes: (0.007, 0.006, 0.010)
+      - Medial condyle (distal): ellipsoid at knee end.
+          center: (0.015, 0, 0.03), axes: (0.018, 0.020, 0.015)
+      - Lateral condyle (distal): ellipsoid at knee end.
+          center: (-0.015, 0, 0.03), axes: (0.018, 0.020, 0.015)
+
+    Orient so the femur runs along +z, with proximal (head) at high z and
+    distal (condyles) at low z. All dimensions in meters, roughly
+    adult-scale (~40-cm length, ~3-cm head).
+
+    Implementation: rejection-sample inside the CSG union, add surface
+    seeds on each primitive, Delaunay-tetrahedralise, then drop tets whose
+    centroid falls outside the union so the mesh traces the anatomical
+    shape instead of the bounding convex hull.
     """
     rng = np.random.default_rng(seed)
 
-    # Bounding box for rejection sampling.
-    # x: [-0.04, 0.05], y: [-0.025, 0.025], z: [-0.04, 0.43]
-    bbox_lo = np.array([-0.04, -0.025, -0.04])
-    bbox_hi = np.array([0.05, 0.025, 0.43])
+    # Bounding box enclosing every primitive, padded slightly.
+    bbox_lo = np.array([-0.040, -0.025, 0.005])
+    bbox_hi = np.array([0.060, 0.025, 0.435])
     bbox_diff = bbox_hi - bbox_lo
 
-    n_target_interior = 180
+    # Rejection-sample ~250 interior points inside the CSG union.
+    n_target_interior = 250
     interior: list[np.ndarray] = []
-    attempts = 0
-    max_attempts = 60_000
-    while len(interior) < n_target_interior and attempts < max_attempts:
-        batch = rng.random((512, 3)) * bbox_diff + bbox_lo
-        for p in batch:
-            attempts += 1
-            if _femur_envelope(p):
-                interior.append(p)
-                if len(interior) >= n_target_interior:
-                    break
-    interior_arr = np.array(interior)
+    while len(interior) < n_target_interior:
+        batch = rng.random((2000, 3)) * bbox_diff + bbox_lo
+        accepted = batch[_inside_union(batch)]
+        interior.extend(accepted)
+        if len(interior) >= n_target_interior:
+            interior = interior[:n_target_interior]
+            break
+    interior_arr = np.asarray(interior, dtype=np.float64)
 
-    # Boundary seed rings so the tet mesh traces the shape.
-    boundary: list[np.ndarray] = []
+    # Surface seeds on each primitive anchor the Delaunay hull to the shape.
+    boundary_arr = _femur_boundary_seeds()
 
-    # Shaft rings.
-    for z_val in np.linspace(0.01, 0.39, 12):
-        r_shaft = (
-            0.012
-            + 0.005 * np.exp(-((z_val - 0.05) ** 2) / 0.001)
-            + 0.012 * np.exp(-((z_val - 0.38) ** 2) / 0.0005)
-        )
-        for theta in np.linspace(0, 2 * np.pi, 8, endpoint=False):
-            boundary.append(np.array([r_shaft * np.cos(theta), r_shaft * np.sin(theta), z_val]))
-
-    # Femoral-head sphere samples (poles + equatorial ring).
-    head_centre = np.array([0.03, 0.0, -0.02])
-    for theta in np.linspace(0, 2 * np.pi, 8, endpoint=False):
-        for phi in (np.pi / 4, np.pi / 2, 3 * np.pi / 4):
-            boundary.append(
-                head_centre
-                + 0.016
-                * np.array([np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)])
-            )
-
-    # Distal condyle caps.
-    for cx in (0.018, -0.018):
-        centre = np.array([cx, 0.0, 0.41])
-        for theta in np.linspace(0, 2 * np.pi, 6, endpoint=False):
-            for phi in (np.pi / 3, 2 * np.pi / 3):
-                boundary.append(
-                    centre
-                    + 0.017
-                    * np.array(
-                        [np.sin(phi) * np.cos(theta), np.sin(phi) * np.sin(theta), np.cos(phi)]
-                    )
-                )
-
-    boundary_arr = np.array(boundary)
-
+    # Stack, then dedupe to 1 micron so Delaunay doesn't see coincident nodes.
     points = np.vstack([interior_arr, boundary_arr])
+    points = np.unique(points.round(6), axis=0)
 
     tri = Delaunay(points)
-    # Filter out tets whose centroids fall outside the CSG envelope, so the
-    # mesh traces the anatomical shape instead of the bounding convex hull.
     centroids = points[tri.simplices].mean(axis=1)
-    keep = np.array([_femur_envelope(c) for c in centroids])
-    tets = tri.simplices[keep]
+    tets = tri.simplices[_inside_union(centroids)]
 
-    # Drop any nodes that ended up unused after the tet filter (keeps the
-    # node count tight and the output file small).
+    # Drop any nodes unused after tet filtering (keeps file size tight).
     used = np.unique(tets)
     remap = np.full(points.shape[0], -1, dtype=np.int64)
     remap[used] = np.arange(used.size, dtype=np.int64)
     points = points[used]
     tets = remap[tets]
 
-    # BMD / Young's-modulus field per node.
-    bmd = np.array([_femur_bmd(p) for p in points], dtype=np.float64)
+    youngs_modulus = _femur_youngs_modulus(points).astype(np.float64)
 
     r = Region(name="femur")
     add_lagrange_mesh(
@@ -202,13 +238,14 @@ def generate_synthetic_femur(seed: int = 42) -> None:
         r,
         name="youngs_modulus",
         mesh_name="femur_mesh",
-        values=bmd.astype(np.float64),
+        values=youngs_modulus,
     )
 
     doc = fml.Document.from_region(r)
     out = OUT / "femur.fieldml"
     doc.write(out)
-    print(f"wrote {out} ({points.shape[0]} nodes, {tets.shape[0]} tets)")
+    size = out.stat().st_size
+    print(f"wrote {out} ({points.shape[0]} nodes, {tets.shape[0]} tets, {size:,} bytes)")
 
 
 def generate_synthetic_rectus_femoris(seed: int = 43) -> None:

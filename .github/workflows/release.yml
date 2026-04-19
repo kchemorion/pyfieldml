@@ -24,6 +24,17 @@ jobs:
         with:
           name: dist
           path: dist/
+      - name: Package conformance suite
+        run: |
+          mkdir -p conformance-pkg/fixtures
+          cp tests/fixtures/*.fieldml conformance-pkg/fixtures/
+          cp conformance/runner.py conformance/README.md conformance-pkg/
+          cd conformance-pkg
+          zip -r ../pyfieldml-conformance.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conformance
+          path: pyfieldml-conformance.zip
 
   publish:
     needs: build
@@ -47,7 +58,13 @@ jobs:
         with:
           name: dist
           path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: conformance
+          path: conformance-dist/
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: |
+            dist/*
+            conformance-dist/pyfieldml-conformance.zip
           generate_release_notes: true

@@ -96,6 +96,14 @@ def add_lagrange_mesh(
     return mesh, coords
 
 
+_HERMITE_TOPOLOGY: dict[str, tuple[str, int, int, int]] = {
+    # topology -> (basis_name, n_nodes_per_elem, n_deriv_slots, n_dofs_per_elem)
+    "line": ("library.basis.cubic_hermite.line", 2, 1, 4),
+    "quad": ("library.basis.bicubic_hermite.quad", 4, 3, 16),
+    "hex": ("library.basis.tricubic_hermite.hex", 8, 7, 64),
+}
+
+
 def add_hermite_mesh(
     region: Region,
     *,
@@ -107,47 +115,95 @@ def add_hermite_mesh(
     topology: str = "line",
     coord_name: str = "coordinates",
 ) -> tuple[MeshType, ParameterEvaluator]:
-    """Add a cubic-Hermite mesh to ``region``. Phase-3 line-only.
+    """Add a cubic-Hermite mesh to ``region``.
+
+    Supports three topologies:
+        - ``line``: 2 DOF kinds/node (value, d/dxi1); 4 DOFs/elem.
+        - ``quad`` (bicubic): 4 DOF kinds/node (value, d/dxi1, d/dxi2, d2/dxi1dxi2);
+          16 DOFs/elem.
+        - ``hex`` (tricubic): 8 DOF kinds/node (value, d/dxi1, d/dxi2, d/dxi3,
+          d2/dxi1dxi2, d2/dxi1dxi3, d2/dxi2dxi3, d3/dxi1dxi2dxi3); 64 DOFs/elem.
+
+    DOF convention (CMISS-style per-corner ordering):
+
+        Quad per-corner basis DOF order: (value, d/dxi1, d/dxi2, d2/dxi1dxi2).
+        User-supplied ``derivatives[n]`` has shape ``(3, D)`` with slot order
+        (d/dxi1, d/dxi2, d2/dxi1dxi2) — matching the basis order minus the value.
+
+        Hex per-corner basis DOF order (f_u + 2*f_v + 4*f_w, f in {0,1}):
+            0: value, 1: d/dxi1, 2: d/dxi2, 3: d2/dxi1dxi2,
+            4: d/dxi3, 5: d2/dxi1dxi3, 6: d2/dxi2dxi3, 7: d3/dxi1dxi2dxi3.
+        User-supplied ``derivatives[n]`` has shape ``(7, D)`` with slot order
+        (d/dxi1, d/dxi2, d/dxi3, d2/dxi1dxi2, d2/dxi1dxi3, d2/dxi2dxi3,
+        d3/dxi1dxi2dxi3). The evaluator reorders to basis DOF layout at assembly.
 
     Produces:
         - MeshType(name) with elements + xi chart
-        - ParameterEvaluator(coord_name) for node coordinates - shape (N_nodes, D)
-        - ParameterEvaluator(coord_name + '.derivatives') - shape (N_nodes, D)
-        - ParameterEvaluator(coord_name + '.connectivity') - (n_elems, 2), 1-indexed
-        - ParameterEvaluator(coord_name + '.scales') - (n_elems, 2); all-ones if scales is None
-        - ExternalEvaluator("library.basis.cubic_hermite.line")
+        - ParameterEvaluator(coord_name) for node coordinates, shape (N_nodes, D)
+        - ParameterEvaluator(coord_name + '.derivatives'), shape
+          (N_nodes, n_deriv_slots * D) flattened (n_deriv_slots=1 for line, 3 for
+          quad, 7 for hex)
+        - ParameterEvaluator(coord_name + '.connectivity'), (n_elems, n_per_elem),
+          1-indexed
+        - ParameterEvaluator(coord_name + '.scales'), (n_elems, n_dofs_per_elem)
+          for quad/hex (all-ones default); (n_elems, 2) for line (legacy layout)
+        - ExternalEvaluator naming the basis
 
-    Phase-3 simplification: one scalar scale per node per element (not per-DOF-pair-
-    per-element as CMISS supports). Quad/hex Hermite builders are deferred and
-    raise ``NotImplementedError``.
+    For line, scales retain the legacy (n_elems, 2) layout (one scalar per node
+    per element, applied to derivative slots only) for backward compatibility.
     """
-    if topology != "line":
-        raise NotImplementedError(
-            f"Phase-3: add_hermite_mesh currently supports only topology='line', "
-            f"got {topology!r}. Bicubic/tricubic Hermite builders are a later-phase task."
+    if topology not in _HERMITE_TOPOLOGY:
+        raise ValueError(
+            f"add_hermite_mesh: unsupported topology {topology!r}. "
+            f"Supported: {sorted(_HERMITE_TOPOLOGY)}."
         )
+    basis_name, n_per_elem, n_slots, n_dofs_per_elem = _HERMITE_TOPOLOGY[topology]
 
     if nodes.ndim != 2:
         raise ValueError(f"nodes must be 2-D (N_nodes, D); got shape {nodes.shape}")
-    if derivatives.shape != nodes.shape:
-        raise ValueError(
-            f"derivatives shape {derivatives.shape} must match nodes shape {nodes.shape}"
-        )
-    if elements.ndim != 2 or elements.shape[1] != 2:
-        raise ValueError(
-            f"elements must have shape (n_elems, 2) for a line topology; got {elements.shape}"
-        )
-
     d = nodes.shape[1]
     n_elems = elements.shape[0]
-    basis_name = "library.basis.cubic_hermite.line"
 
-    if scales is None:
-        scales = np.ones((n_elems, 2), dtype=np.float64)
-    elif scales.shape != (n_elems, 2):
+    # Validate derivatives shape. Line uses the legacy (N_nodes, D) layout.
+    if topology == "line":
+        if derivatives.shape != nodes.shape:
+            raise ValueError(
+                f"derivatives shape {derivatives.shape} must match nodes shape "
+                f"{nodes.shape} for topology='line'"
+            )
+        # Internal flat storage: (N_nodes, 1*D) == (N_nodes, D) — no change.
+        derivs_flat = derivatives.astype(np.float64)
+    else:
+        expected = (nodes.shape[0], n_slots, d)
+        if derivatives.shape != expected:
+            raise ValueError(
+                f"derivatives shape {derivatives.shape} must match "
+                f"(N_nodes, {n_slots}, D) = {expected} for topology={topology!r}"
+            )
+        # Flatten per-node to (n_slots * D): slot-major within each node.
+        derivs_flat = derivatives.reshape(nodes.shape[0], n_slots * d).astype(np.float64)
+
+    if elements.ndim != 2 or elements.shape[1] != n_per_elem:
         raise ValueError(
-            f"scales must have shape (n_elems, 2) = ({n_elems}, 2); got {scales.shape}"
+            f"elements must have shape (n_elems, {n_per_elem}) for a {topology!r} "
+            f"topology; got {elements.shape}"
         )
+
+    if topology == "line":
+        if scales is None:
+            scales = np.ones((n_elems, 2), dtype=np.float64)
+        elif scales.shape != (n_elems, 2):
+            raise ValueError(
+                f"scales must have shape (n_elems, 2) = ({n_elems}, 2); got {scales.shape}"
+            )
+    else:
+        if scales is None:
+            scales = np.ones((n_elems, n_dofs_per_elem), dtype=np.float64)
+        elif scales.shape != (n_elems, n_dofs_per_elem):
+            raise ValueError(
+                f"scales must have shape (n_elems, {n_dofs_per_elem}) = "
+                f"({n_elems}, {n_dofs_per_elem}); got {scales.shape}"
+            )
 
     vt = ContinuousType(
         name=f"{coord_name}.value_type",
@@ -179,9 +235,22 @@ def add_hermite_mesh(
     coords = ParameterEvaluator(name=coord_name, value_type=vt, data=nodes_data)
     region.add_evaluator(coords)
 
-    derivs_data = InlineTextBackend.from_ndarray(derivatives.astype(np.float64))
+    # For quad/hex, build a derivatives ContinuousType sized to (n_slots * D) so
+    # downstream loaders/writers see the flat slot-major layout as the value
+    # type. For line we retain the original coord value_type for backward-compat.
+    if topology == "line":
+        derivs_vt: ContinuousType = vt
+    else:
+        derivs_vt = ContinuousType(
+            name=f"{coord_name}.derivatives.value_type",
+            component_name=f"{coord_name}.derivatives.component",
+            component_count=n_slots * d,
+        )
+        region.add_type(derivs_vt)
+
+    derivs_data = InlineTextBackend.from_ndarray(derivs_flat)
     derivs_ev = ParameterEvaluator(
-        name=f"{coord_name}.derivatives", value_type=vt, data=derivs_data
+        name=f"{coord_name}.derivatives", value_type=derivs_vt, data=derivs_data
     )
     region.add_evaluator(derivs_ev)
 

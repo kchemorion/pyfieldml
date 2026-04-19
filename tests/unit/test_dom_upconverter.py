@@ -87,6 +87,42 @@ def test_upconvert_0_3_renames_variables_wrapper() -> None:
     assert root.find(".//Arguments/Argument") is not None
 
 
+def test_upconvert_0_3_transforms_component_ensemble_into_components_child() -> None:
+    """0.3 ``ContinuousType @componentEnsemble`` should become a ``<Components>`` child.
+
+    Regression for the Phase-0 loader which silently dropped the component link.
+    """
+    content = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Fieldml version="0.3">'
+        '<Region name="r">'
+        '<EnsembleType name="coord_axes">'
+        '<Members><MemberRange min="1" max="3"/></Members>'
+        "</EnsembleType>"
+        '<ContinuousType name="vec3" componentEnsemble="coord_axes"/>'
+        "</Region>"
+        "</Fieldml>"
+    )
+    parsed = parse_string(content)
+    root = parsed.tree.getroot()
+    ct = root.find(".//ContinuousType[@name='vec3']")
+    assert ct is not None
+    assert "componentEnsemble" not in ct.attrib
+    components = ct.find("Components")
+    assert components is not None
+    assert components.get("count") == "3"
+
+    # And the model loader must see the component_count downstream.
+    from pyfieldml.dom.parser import parse_string as _ps
+    from pyfieldml.model._loader import _load_region
+
+    _ = _ps  # keep import side-effects consistent with the rest of the file
+    from pathlib import Path as _Path
+
+    region = _load_region(root.find("Region"), base_dir=_Path("."))
+    assert region.continuous["vec3"].component_count == 3
+
+
 def test_upconvert_unknown_version_raises() -> None:
     # Build a tree manually; parse_string would reject an unknown version
     # in _validate_root before it could reach the upconverter.

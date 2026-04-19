@@ -46,6 +46,25 @@ uv sync --extra dev
 uv run pytest
 ```
 
+## Try it in your browser
+
+The tutorial notebooks run in-browser via JupyterLite (Pyodide kernel, no
+install required). The site is built by `.github/workflows/jupyterlite.yml`
+and a hosted URL will be added once GitHub Pages is enabled — see
+[`docs/jupyterlite/README.md`](docs/jupyterlite/README.md) to build it
+locally.
+
+Notebooks (in [`docs/notebooks/`](docs/notebooks/)):
+
+- `01_quickstart.ipynb` — five-minute install / load / evaluate / export tour
+- `02_evaluator_graph.ipynb` — anatomy of the FieldML evaluator hierarchy
+- `03_hermite_bending.ipynb` — cubic-Hermite beam: derivative DOFs + basis plots
+- `04_muscle_fibers.ipynb` — `rectus_femoris` fiber-direction field + VTK glyphs
+- `05_meshio_roundtrip.ipynb` — FieldML → VTU → FieldML round-trip via `meshio`
+- `06_scikit_fem_poisson.ipynb` — solve Poisson on a FieldML mesh with `scikit-fem`
+- `07_real_anatomy.ipynb` — tour of the bundled Stanford Bunny + BodyParts3D femur
+- `08_conformance.ipynb` — self-conformance smoke test over every bundled dataset
+
 ## Quickstart
 
 ```python

@@ -62,6 +62,58 @@ def test_kronecker_delta_at_nodes(name: str, n: int) -> None:
     np.testing.assert_allclose(phi, np.eye(n), rtol=0, atol=1e-12)
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "library.basis.linear_lagrange.line",
+        "library.basis.linear_lagrange.triangle",
+        "library.basis.linear_lagrange.quad",
+        "library.basis.linear_lagrange.tet",
+        "library.basis.linear_lagrange.hex",
+        "library.basis.linear_lagrange.wedge",
+        "library.basis.quadratic_lagrange.line",
+        "library.basis.quadratic_lagrange.triangle",
+        "library.basis.quadratic_lagrange.quad",
+        "library.basis.quadratic_lagrange.tet",
+        "library.basis.quadratic_lagrange.hex",
+        "library.basis.quadratic_lagrange.wedge",
+    ],
+)
+def test_lagrange_shape_derivatives_match_finite_difference(name: str) -> None:
+    """Central FD of shape_functions must match analytic shape_derivatives."""
+    b = get_basis(name)
+    rng = np.random.default_rng(0)
+    d = _ref_dim(name)
+    n_samples = 10
+
+    # Sample 10 interior xi points inside the reference element
+    xi = rng.random((n_samples, d)) * 0.6 + 0.2  # stay away from boundaries
+    # For simplex topologies, clip to u+v+w <= 0.8 (safely interior)
+    if name.endswith(("triangle", "tet", "wedge")):
+        # Simple rejection to get 10 interior samples
+        samples: list[np.ndarray] = []
+        while len(samples) < n_samples:
+            x = rng.random(d) * 0.6 + 0.2
+            if x[:2].sum() <= 0.8:  # works for triangle/tet/wedge
+                samples.append(x)
+        xi = np.array(samples)
+
+    analytic = b.shape_derivatives(xi)  # (N, n_nodes, D)
+
+    # Central FD
+    h = 1e-6
+    fd = np.zeros_like(analytic)
+    for dim in range(d):
+        offset = np.zeros(d)
+        offset[dim] = h
+        f_plus = b.shape_functions(xi + offset)
+        f_minus = b.shape_functions(xi - offset)
+        fd[..., dim] = (f_plus - f_minus) / (2 * h)
+
+    # Tolerance: 1e-5 accounts for float round-off in h and polynomial orders.
+    np.testing.assert_allclose(analytic, fd, atol=1e-5, rtol=1e-5)
+
+
 def _ref_dim(name: str) -> int:
     if name.endswith("line"):
         return 1

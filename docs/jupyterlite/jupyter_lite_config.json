@@ -1,0 +1,16 @@
+{
+  "LiteBuildConfig": {
+    "apps": ["lab", "retro"],
+    "no_unused_shared_packages": true
+  },
+  "PipliteAddon": {
+    "piplite_urls": [
+      "https://pypi.org/pypi/pyfieldml/json",
+      "https://pypi.org/pypi/numpy/json",
+      "https://pypi.org/pypi/h5py/json",
+      "https://pypi.org/pypi/meshio/json",
+      "https://pypi.org/pypi/lxml/json",
+      "https://pypi.org/pypi/scipy/json"
+    ]
+  }
+}

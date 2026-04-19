@@ -22,7 +22,7 @@ jobs:
       - run: uv sync --extra dev
       - run: uv run ruff check src tests
       - run: uv run ruff format --check src tests
-      - run: uv run mypy src/pyfieldml
+      - run: uv run mypy src/pyfieldml tests
 
   test:
     name: Test (${{ matrix.os }} · py${{ matrix.python }})
