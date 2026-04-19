@@ -108,21 +108,44 @@ def from_meshio(mesh: meshio.Mesh, *, name: str = "imported") -> Any:
 
 
 def _find_coord_evaluator(region: Any) -> str | None:
-    """First ParameterEvaluator whose value_type has component_count == mesh.dimension."""
+    """Find the ParameterEvaluator that carries mesh coordinates.
+
+    Coordinates are always embedded in 2D or 3D ambient space, which is
+    distinct from the reference-element dimension of the mesh. A triangle
+    mesh (``mesh.dimension == 2``) may have 3D coordinates — a surface mesh
+    in 3D. We therefore look for a ``ParameterEvaluator`` whose value-type
+    is a ``ContinuousType`` with ``component_count`` in ``{2, 3}``.
+
+    Ranking when multiple candidates match:
+      1. ``component_count == mesh.dimension`` (volumetric / matching-dim case)
+      2. First 3D candidate (surface / curve in 3D)
+      3. First 2D candidate (curve / polygon in 2D)
+    """
     from pyfieldml.model.evaluators import ParameterEvaluator
     from pyfieldml.model.types import ContinuousType
 
     if not region.meshes:
         return None
     mesh = next(iter(region.meshes.values()))
+
+    match_dim: str | None = None
+    match_3d: str | None = None
+    match_2d: str | None = None
     for name, ev in region.evaluators.items():
-        if (
-            isinstance(ev, ParameterEvaluator)
-            and isinstance(ev.value_type, ContinuousType)
-            and ev.value_type.component_count == mesh.dimension
-        ):
-            return str(name)
-    return None
+        if not isinstance(ev, ParameterEvaluator):
+            continue
+        if not isinstance(ev.value_type, ContinuousType):
+            continue
+        cc = ev.value_type.component_count
+        if cc not in (2, 3):
+            continue
+        if match_dim is None and cc == mesh.dimension:
+            match_dim = str(name)
+        if match_3d is None and cc == 3:
+            match_3d = str(name)
+        if match_2d is None and cc == 2:
+            match_2d = str(name)
+    return match_dim or match_3d or match_2d
 
 
 def _find_basis_name(region: Any) -> str:

@@ -49,6 +49,31 @@ def _unit_cube_doc() -> fml.Document:
     return fml.Document.from_region(r)
 
 
+def _triangle_3d_doc() -> fml.Document:
+    """Surface mesh: 2D reference element (triangle) embedded in 3D coords."""
+    r = Region(name="patch")
+    nodes = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.1],
+            [0.0, 1.0, 0.2],
+            [1.0, 1.0, 0.3],
+        ],
+        dtype=np.float64,
+    )
+    connectivity = np.array([[1, 2, 3], [2, 4, 3]], dtype=np.int64)
+    add_lagrange_mesh(
+        r,
+        name="patch_mesh",
+        nodes=nodes,
+        elements=connectivity,
+        topology="triangle",
+        order=1,
+        coord_name="coordinates",
+    )
+    return fml.Document.from_region(r)
+
+
 def test_to_meshio_preserves_points_and_cells() -> None:
     doc = _unit_cube_doc()
     m = doc.to_meshio()
@@ -106,6 +131,32 @@ def test_meshio_register_plugin(tmp_path: Path) -> None:
 
     m = _meshio.read(fieldml_path)
     assert m.points.shape == (8, 3)
+
+
+def test_to_meshio_handles_triangle_surface_in_3d() -> None:
+    """Triangle meshes in 3D must not trip the coord-evaluator heuristic.
+
+    Regression: mesh.dimension == 2 for triangles but coords are 3D; the old
+    heuristic required exact equality and raised "No coordinate evaluator found".
+    """
+    doc = _triangle_3d_doc()
+    m = doc.to_meshio()
+    assert m.points.shape == (4, 3)
+    assert m.cells[0].type == "triangle"
+    assert m.cells[0].data.shape == (2, 3)
+
+
+def test_fieldml_to_meshio_table_is_all_accepted_by_cellblock() -> None:
+    """Every FIELDML_TO_MESHIO key must name a cell type meshio actually knows.
+
+    Regression: mappings like ``wedge15`` would silently shadow ``wedge18`` but
+    blow up the moment anyone tried to build a CellBlock with them.
+    """
+    from pyfieldml.interop.meshio import FIELDML_TO_MESHIO
+
+    for _key, meshio_key in FIELDML_TO_MESHIO.items():
+        block = meshio.CellBlock(meshio_key, np.zeros((0, 1), dtype=np.int64))
+        assert block.type == meshio_key
 
 
 def test_meshio_auto_registers_without_explicit_register_call(tmp_path: Path) -> None:
