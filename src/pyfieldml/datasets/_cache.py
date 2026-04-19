@@ -39,8 +39,20 @@ def ensure_files(name: str) -> Path:
     info = REGISTRY[name]
     if info.bundled:
         ref = resources.files("pyfieldml.datasets._bundled").joinpath(f"{name}.fieldml")
-        with resources.as_file(ref) as concrete:
-            return Path(concrete)
+        # Loose-file install: use the resource directly to avoid copying.
+        direct = Path(str(ref))
+        if direct.is_file():
+            return direct
+        # Zipped install: ``as_file`` returns a context-managed temp path that
+        # would be cleaned up on context exit. Extract to a stable cache
+        # location instead so the returned path survives.
+        cached_dir = cache_dir() / "bundled"
+        cached_dir.mkdir(parents=True, exist_ok=True)
+        target = cached_dir / f"{name}.fieldml"
+        if not target.is_file():
+            with resources.as_file(ref) as concrete:
+                target.write_bytes(Path(concrete).read_bytes())
+        return target
 
     d = dataset_dir(name)
     for filename, expected_sha in info.files.items():
