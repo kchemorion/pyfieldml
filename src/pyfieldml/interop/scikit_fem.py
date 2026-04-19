@@ -69,7 +69,14 @@ def to_scikit_fem(doc: Any, *, mesh_name: str | None = None) -> tuple[Any, Any]:
 
 
 def _build_tables() -> tuple[dict[tuple[str, int], type], dict[tuple[str, int], type]]:
-    """Build the topology+order → MeshClass / ElementClass lookup at import time."""
+    """Build the topology+order → MeshClass / ElementClass lookup at import time.
+
+    Quadratic (order 2) entries use scikit-fem's P1 mesh classes combined
+    with P2/S2 element classes: scikit-fem keeps mesh topology independent
+    of basis order, so a linear mesh + quadratic basis is canonical.
+    ``ElementHexP2`` / ``ElementQuadP2`` are not in scikit-fem; serendipity
+    variants ``ElementHexS2`` / ``ElementQuadS2`` are the closest fit.
+    """
     import skfem
 
     mesh_table: dict[tuple[str, int], type] = {
@@ -78,6 +85,11 @@ def _build_tables() -> tuple[dict[tuple[str, int], type], dict[tuple[str, int], 
         ("triangle", 1): skfem.MeshTri,
         ("quad", 1): skfem.MeshQuad,
         ("line", 1): skfem.MeshLine,
+        # Quadratic: keep a P1 mesh, let the Element do the P2 work.
+        ("tet", 2): skfem.MeshTet1,
+        ("hex", 2): skfem.MeshHex1,
+        ("triangle", 2): skfem.MeshTri1,
+        ("quad", 2): skfem.MeshQuad1,
     }
     elem_table: dict[tuple[str, int], type] = {
         ("tet", 1): skfem.ElementTetP1,
@@ -85,6 +97,10 @@ def _build_tables() -> tuple[dict[tuple[str, int], type], dict[tuple[str, int], 
         ("triangle", 1): skfem.ElementTriP1,
         ("quad", 1): skfem.ElementQuad1,
         ("line", 1): skfem.ElementLineP1,
+        ("tet", 2): skfem.ElementTetP2,
+        ("hex", 2): skfem.ElementHexS2,  # serendipity; no ElementHexP2 in skfem
+        ("triangle", 2): skfem.ElementTriP2,
+        ("quad", 2): skfem.ElementQuadS2,  # serendipity; no ElementQuadP2 in skfem
     }
     return mesh_table, elem_table
 

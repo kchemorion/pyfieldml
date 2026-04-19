@@ -27,6 +27,10 @@ FIELDML_TO_MESHIO: dict[tuple[str, int], str] = {
     ("hex", 1): "hexahedron",
     ("hex", 2): "hexahedron27",
     ("wedge", 1): "wedge",
+    # meshio ships "wedge18" (Lagrange bi-quadratic triangular prism, 18 nodes).
+    # "wedge15" (serendipity) is not in meshio, so we standardise on 18-node;
+    # it matches pyfieldml's tensor-product quadratic_lagrange.wedge.
+    ("wedge", 2): "wedge18",
 }
 
 MESHIO_TO_FIELDML: dict[str, tuple[str, int]] = {v: k for k, v in FIELDML_TO_MESHIO.items()}
