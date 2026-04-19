@@ -12,9 +12,20 @@ from pathlib import Path
 
 from lxml import etree
 
+from pyfieldml.dom.upconverter import upconvert_to_0_5
 from pyfieldml.errors import FieldMLParseError
 
-SUPPORTED_VERSIONS: frozenset[str] = frozenset({"0.3", "0.3.0", "0.4", "0.4.0", "0.5", "0.5.0"})
+SUPPORTED_VERSIONS: frozenset[str] = frozenset(
+    {
+        "0.3",
+        "0.3.0",
+        "0.3_alpha",
+        "0.4",
+        "0.4.0",
+        "0.5",
+        "0.5.0",
+    }
+)
 
 PathLike = str | Path
 
@@ -51,6 +62,7 @@ def parse_file(path: PathLike) -> ParsedDocument:
             f"Malformed XML: {exc.msg}", source_file=str(path), line=line
         ) from exc
     version = _validate_root(tree, source_file=str(path))
+    _maybe_upconvert(tree, version)
     return ParsedDocument(tree=tree, version=version, source_file=str(path))
 
 
@@ -66,6 +78,7 @@ def parse_string(content: str | bytes) -> ParsedDocument:
         raise FieldMLParseError(f"Malformed XML: {exc.msg}", line=line) from exc
     tree = etree.ElementTree(root)
     version = _validate_root(tree, source_file=None)
+    _maybe_upconvert(tree, version)
     return ParsedDocument(tree=tree, version=version, source_file=None)
 
 
@@ -91,3 +104,14 @@ def _validate_root(tree: etree._ElementTree, *, source_file: str | None) -> str:
             line=root.sourceline,
         )
     return str(version)
+
+
+def _maybe_upconvert(tree: etree._ElementTree, version: str) -> None:
+    """If ``version`` is 0.3.x or 0.4.x, upconvert ``tree`` to 0.5 in place.
+
+    ``ParsedDocument.version`` still records the original version so callers
+    (notably ``Document.source_version``) can introspect the pre-upconvert
+    version number. The tree itself is 0.5-shaped after this call.
+    """
+    if version.startswith(("0.3", "0.4")):
+        upconvert_to_0_5(tree)

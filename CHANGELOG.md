@@ -6,6 +6,38 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-19
+
+### Added
+- Cubic Hermite basis functions: line (4 DOFs), bicubic quad (16 DOFs),
+  tricubic hex (64 DOFs). Registered as `library.basis.cubic_hermite.line`,
+  `.bicubic_hermite.quad`, `.tricubic_hermite.hex`.
+- `pyfieldml.builders.add_hermite_mesh` — one-call Hermite line mesh builder
+  with per-node scale-factor support (Phase-3 simplification: scalar-per-node
+  scaling; quad/hex builders raise NotImplementedError for now).
+- `Field.evaluate` and `Field.jacobian` apply per-node scale factors when
+  the field is a Hermite-line mesh.
+- FieldML 0.3 and 0.4 → 0.5 DOM up-converter (`pyfieldml.dom.upconverter`).
+  Handles the version tag, plus 0.3 element renames observed in the
+  reference library (`AbstractEvaluator` → `ArgumentEvaluator`,
+  `Variables`/`Variable` → `Arguments`/`Argument`) and strips the 0.3
+  `isComponentEnsemble` marker attribute.
+- `parse_file` / `parse_string` auto-invoke the up-converter on legacy
+  documents; `Document.source_version` continues to track the original
+  pre-upconversion version.
+- Supported-version set now includes `"0.3_alpha"` (the literal used by
+  the Physiome reference 0.3 library).
+
+### Known limitations
+- The 0.3 `ContinuousType componentEnsemble="X"` structural transform is
+  not yet implemented — ensemble-backed continuous types load as scalar
+  types, silently losing the component link. Full 0.3 library ingestion
+  is a future-phase task.
+- No 0.4 test corpus is available, so 0.4 upconverter is version-rewrite
+  only; element renames will be added as real fixtures surface.
+- Hermite quad/hex builders raise NotImplementedError; only line meshes
+  are constructible via `add_hermite_mesh`.
+
 ## [0.2.0] - 2026-04-19
 
 ### Added
@@ -66,7 +98,8 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Community files: CONTRIBUTING, CODE_OF_CONDUCT, CHANGELOG, MAINTAINING,
   issue + PR templates.
 
-[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.3.0
 [0.2.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.2.0
 [0.1.0]: https://github.com/kchemorion/pyfieldml/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.0.1
