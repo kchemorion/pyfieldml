@@ -110,7 +110,7 @@ files = ["src/pyfieldml", "tests"]
 plugins = []
 
 [[tool.mypy.overrides]]
-module = ["lxml.*", "h5py.*", "scipy.*", "meshio.*", "pyvista.*", "vtk.*"]
+module = ["lxml.*", "h5py.*", "scipy.*", "meshio.*", "pyvista.*", "vtk.*", "skfem.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
