@@ -53,8 +53,9 @@ REGISTRY: dict[str, DatasetInfo] = {
         files={"femur.fieldml": ""},
         license="CC0-1.0",
         citation=(
-            "Synthetic femoral shape (cylinder approximation) authored for "
-            "pyfieldml. CC0 dedication."
+            "Anatomical-synthetic femur (CSG-assembled shaft + femoral head + "
+            "neck + trochanters + distal condyles, with a radial BMD gradient) "
+            "authored for pyfieldml. CC0 dedication."
         ),
         origin="https://github.com/kchemorion/pyfieldml",
         bundled=True,
