@@ -6,6 +6,64 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-04-19
+
+### Added
+
+- **JupyterLite in-browser site** (`docs/jupyterlite/`): runnable notebooks
+  via Pyodide with no install; built by `docs/jupyterlite/build.py` and
+  packaged in a new `.github/workflows/jupyterlite.yml` CI workflow. Claim
+  re-added to the README.
+- Five new tutorial notebooks in `docs/notebooks/`: `03_hermite_bending`,
+  `05_meshio_roundtrip`, `06_scikit_fem_poisson`, `07_real_anatomy`,
+  `08_conformance`. All verified via `pytest --nbmake`.
+- **Hermite quad + hex builders**: `builders.add_hermite_mesh` now supports
+  bicubic quad (16 DOFs/elem) and tricubic hex (64 DOFs/elem) with
+  CMISS-style DOF ordering. Field evaluation handles both through
+  `_assemble_hermite_tensor_dofs`.
+- **scikit-fem P2 interop**: `ElementTetP2`, `ElementHexS2`, `ElementTriP2`,
+  `ElementQuadS2` added to the scikit-fem bridge; meshio wedge quadratic
+  (`wedge18`) handled in both directions.
+- **ImportResolver wired into the DOM loader**: `<Import>` elements are now
+  walked when loading a region, enabling multi-file FieldML documents.
+- **0.3 `ContinuousType@componentEnsemble` structural transform** in the
+  upconverter: legacy 0.3 syntax is rewritten to `<Components>` children
+  during load.
+- **Finite-difference parity tests** for every Lagrange basis
+  (`tests/unit/test_lagrange_fd_parity.py`).
+- **Reproducibility benchmark**
+  (`tests/benchmarks/test_reproducibility.py`): SHA256 fingerprints every
+  bundled dataset so silent regressions fail loudly.
+- **Conformance test-suite zip** published as a release asset from the
+  release workflow (packages `conformance/runner.py`, `README.md`, and the
+  bundled `.fieldml` fixtures).
+- Self-roundtrip conformance test
+  (`tests/conformance/test_cpp_reference.py`) that runs without
+  `PYFIELDML_CPP_REF` set — the module-level skip is gone.
+
+### Changed
+
+- **Synthetic femur** (`datasets.load_femur`) rewritten as a true CSG union
+  (head, neck, greater/lesser trochanters, shaft, condyles) — head offset
+  0.042 m, condyle-to-shaft radius ratio 2.46. 409 nodes; the BMD-derived
+  Young's modulus field is preserved.
+- **BodyParts3D femur** re-decimated via pyvista quadric edge-collapse —
+  holes that previously left the surface non-watertight are gone
+  (3 connected components → 1).
+- **DOM writer** now emits `xmlns:xsi` + `xsi:noNamespaceSchemaLocation` on
+  the root element for parity with the reference C++ writer.
+- **CI mypy** now runs against `tests/` in addition to `src/pyfieldml`;
+  pre-existing type errors either fixed at source (e.g.
+  `AggregateEvaluator.components: Sequence[...]`) or suppressed at file
+  granularity where the code can't move.
+
+### Fixed
+
+- **`to_pyvista` / `to_meshio` on surface meshes in 3D ambient space**: the
+  coord-evaluator heuristic now prefers a match against `mesh.dimension`
+  and falls through to 3D then 2D, so triangle meshes embedded in R³ no
+  longer crash the exporter.
+
 ## [1.1.0] - 2026-04-19
 
 ### Added — Real anatomical meshes in the model zoo
