@@ -65,6 +65,10 @@ dev = [
     "pyvista>=0.43",
     "meshio>=5.3",
 ]
+jupyterlite = [
+    "jupyterlite-core>=0.4",
+    "jupyterlite-pyodide-kernel>=0.4",
+]
 
 [project.scripts]
 pyfieldml = "pyfieldml.cli.main:main"

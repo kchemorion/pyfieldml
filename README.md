@@ -46,6 +46,14 @@ uv sync --extra dev
 uv run pytest
 ```
 
+## Try it in your browser
+
+The tutorial notebooks run in-browser via JupyterLite (Pyodide kernel, no
+install required). The site is built by `.github/workflows/jupyterlite.yml`
+and a hosted URL will be added once GitHub Pages is enabled — see
+[`docs/jupyterlite/README.md`](docs/jupyterlite/README.md) to build it
+locally.
+
 ## Quickstart
 
 ```python
