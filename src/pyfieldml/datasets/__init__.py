@@ -10,6 +10,7 @@ Public API:
     datasets.load_femur()                -> anatomical-synthetic femur
     datasets.load_rectus_femoris()       -> synthetic spindle muscle
     datasets.load_bunny_stanford()       -> Stanford Bunny (public domain)
+    datasets.load_femur_bodyparts3d()    -> BodyParts3D femur (CC-BY-SA 2.1 JP)
 """
 
 from __future__ import annotations
@@ -77,6 +78,11 @@ def load_bunny_stanford() -> Document:
     return load("bunny_stanford")
 
 
+def load_femur_bodyparts3d() -> Document:
+    """Return the bundled BodyParts3D femur Document (CC-BY-SA 2.1 JP triangle mesh)."""
+    return load("femur_bodyparts3d")
+
+
 __all__ = [
     "cache_dir",
     "dataset_dir",
@@ -86,6 +92,7 @@ __all__ = [
     "load",
     "load_bunny_stanford",
     "load_femur",
+    "load_femur_bodyparts3d",
     "load_rectus_femoris",
     "load_unit_cube",
 ]

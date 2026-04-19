@@ -53,6 +53,7 @@ def test_list_contains_all_bundled() -> None:
         "femur",
         "rectus_femoris",
         "bunny_stanford",
+        "femur_bodyparts3d",
     ):
         assert expected in names
 
@@ -94,6 +95,14 @@ def test_bunny_has_triangle_mesh() -> None:
     # It's a surface mesh, so the basis should be linear Lagrange triangle
     basis_names = [n for n in doc.evaluators if n.startswith("library.basis.")]
     assert any("triangle" in n for n in basis_names)
+
+
+def test_load_femur_bodyparts3d_if_bundled() -> None:
+    # May skip if the BodyParts3D fetch failed during generation
+    if "femur_bodyparts3d" not in datasets.list():
+        pytest.skip("femur_bodyparts3d not bundled (fetch failed during generation)")
+    doc = datasets.load_femur_bodyparts3d()
+    assert "coordinates" in doc.evaluators
 
 
 def test_femur_is_anatomical_not_cylindrical() -> None:

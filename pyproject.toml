@@ -9,7 +9,7 @@ description = "A modern pure-Python implementation of FieldML 0.5 with evaluatio
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE"]
+license-files = ["LICENSE", "NOTICE", "LICENSES/*.txt"]
 authors = [
     { name = "Francis Chemorion" },
 ]
@@ -83,6 +83,7 @@ packages = ["src/pyfieldml"]
 "src/pyfieldml/datasets/_bundled/femur.fieldml" = "pyfieldml/datasets/_bundled/femur.fieldml"
 "src/pyfieldml/datasets/_bundled/rectus_femoris.fieldml" = "pyfieldml/datasets/_bundled/rectus_femoris.fieldml"
 "src/pyfieldml/datasets/_bundled/bunny_stanford.fieldml" = "pyfieldml/datasets/_bundled/bunny_stanford.fieldml"
+"src/pyfieldml/datasets/_bundled/femur_bodyparts3d.fieldml" = "pyfieldml/datasets/_bundled/femur_bodyparts3d.fieldml"
 
 [tool.ruff]
 line-length = 100

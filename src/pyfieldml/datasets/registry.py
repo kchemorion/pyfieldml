@@ -79,5 +79,17 @@ REGISTRY: dict[str, DatasetInfo] = {
         origin="https://graphics.stanford.edu/data/3Dscanrep/",
         bundled=True,
     ),
+    "femur_bodyparts3d": DatasetInfo(
+        name="femur_bodyparts3d",
+        files={"femur_bodyparts3d.fieldml": ""},
+        license="CC-BY-SA-2.1-JP",
+        citation=(
+            "BodyParts3D, (c) The Database Center for Life Science (DBCLS), "
+            "licensed under CC-BY-SA 2.1 JP. "
+            "https://lifesciencedb.jp/bp3d/"
+        ),
+        origin="https://lifesciencedb.jp/bp3d/",
+        bundled=True,
+    ),
     # myocardium added in a later task as a synthetic build.
 }
