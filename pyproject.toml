@@ -79,6 +79,8 @@ packages = ["src/pyfieldml"]
 "src/pyfieldml/library/FieldML_Library_0.5.xml" = "pyfieldml/library/FieldML_Library_0.5.xml"
 "src/pyfieldml/library/xlink-href.xsd" = "pyfieldml/library/xlink-href.xsd"
 "src/pyfieldml/datasets/_bundled/unit_cube.fieldml" = "pyfieldml/datasets/_bundled/unit_cube.fieldml"
+"src/pyfieldml/datasets/_bundled/femur.fieldml" = "pyfieldml/datasets/_bundled/femur.fieldml"
+"src/pyfieldml/datasets/_bundled/rectus_femoris.fieldml" = "pyfieldml/datasets/_bundled/rectus_femoris.fieldml"
 
 [tool.ruff]
 line-length = 100

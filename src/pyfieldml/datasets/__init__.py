@@ -57,6 +57,16 @@ def load_unit_cube() -> Document:
     return load("unit_cube")
 
 
+def load_femur() -> Document:
+    """Return the bundled synthetic ``femur`` Document (cylinder + BMD field)."""
+    return load("femur")
+
+
+def load_rectus_femoris() -> Document:
+    """Return the bundled synthetic ``rectus_femoris`` Document (spindle + fiber field)."""
+    return load("rectus_femoris")
+
+
 __all__ = [
     "cache_dir",
     "dataset_dir",
@@ -64,5 +74,7 @@ __all__ = [
     "info",
     "list",
     "load",
+    "load_femur",
+    "load_rectus_femoris",
     "load_unit_cube",
 ]

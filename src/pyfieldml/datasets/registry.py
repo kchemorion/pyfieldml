@@ -48,5 +48,24 @@ REGISTRY: dict[str, DatasetInfo] = {
         origin="https://github.com/kchemorion/pyfieldml",
         bundled=True,
     ),
-    # femur, rectus_femoris, myocardium added in T3 as synthetic builds.
+    "femur": DatasetInfo(
+        name="femur",
+        files={"femur.fieldml": ""},
+        license="CC0-1.0",
+        citation=(
+            "Synthetic femoral shape (cylinder approximation) authored for "
+            "pyfieldml. CC0 dedication."
+        ),
+        origin="https://github.com/kchemorion/pyfieldml",
+        bundled=True,
+    ),
+    "rectus_femoris": DatasetInfo(
+        name="rectus_femoris",
+        files={"rectus_femoris.fieldml": ""},
+        license="CC0-1.0",
+        citation=("Synthetic muscle spindle shape authored for pyfieldml. CC0 dedication."),
+        origin="https://github.com/kchemorion/pyfieldml",
+        bundled=True,
+    ),
+    # myocardium added in a later task as a synthetic build.
 }
