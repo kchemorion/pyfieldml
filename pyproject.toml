@@ -65,6 +65,7 @@ dev = [
     "pyvista>=0.43",
     "meshio>=5.3",
     "scikit-fem>=10",
+    "graphviz>=0.20",
 ]
 jupyterlite = [
     "jupyterlite-core>=0.4",

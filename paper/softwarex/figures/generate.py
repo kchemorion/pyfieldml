@@ -6,7 +6,7 @@ Run from the repository root::
 
 Produces (in this same directory):
 
-    fig1_architecture.png   - pyfieldml layered architecture diagram
+    fig1_architecture.png   - pyfieldml layered architecture (graphviz)
     fig2_zoo_gallery.png    - 2x5 gallery of the ten bundled datasets
     fig3_evaluator_graph.png - DAG + muscle-fiber visualisation (3 panels)
     fig4_hermite_bending.png - basis functions + cantilever bending (4 panels)
@@ -40,109 +40,218 @@ HERE = Path(__file__).resolve().parent
 DPI = 300
 
 
+# Shared colour palette for the architecture diagram. Cool blues for
+# pyfieldml-owned layers, warm neutrals for interop bridges, light greys
+# for third-party foundations.
+_ARCH_INTERNAL_FILL = "#e8f1fb"
+_ARCH_INTERNAL_EDGE = "#3b6ea0"
+_ARCH_INTEROP_FILL = "#fdecd2"
+_ARCH_INTEROP_EDGE = "#b8782c"
+_ARCH_EXTERNAL_FILL = "#f0f0f0"
+_ARCH_EXTERNAL_EDGE = "#6a6a6a"
+
+
 # -----------------------------------------------------------------------
-# Fig 1: Architecture diagram
+# Fig 1: Architecture diagram (graphviz, publication-quality)
 # -----------------------------------------------------------------------
 def fig1_architecture() -> None:
-    fig, ax = plt.subplots(figsize=(11, 6.5))
-    ax.set_xlim(0, 12)
-    ax.set_ylim(0, 8)
-    ax.set_axis_off()
+    from graphviz import Digraph
 
-    # Layers (bottom -> top)
-    layers = [
-        ("File I/O", "dom (lxml tree) | upconverter 0.3->0.4->0.5 | XSD validator", "#dae8fc"),
-        ("Semantic model", "model: Region, Types, Evaluators, Document DOM", "#d5e8d4"),
-        (
-            "Array backends",
-            "data: inline text | external text | HDF5 dense | HDF5 sparse",
-            "#fff2cc",
-        ),
-        ("Evaluation engine", "eval: Lagrange + Hermite bases | locate | jacobian", "#f8cecc"),
-        ("User-facing", "builders | validation | cli | datasets (model zoo)", "#e1d5e7"),
-    ]
-    y = 0.6
-    for title, content, color in layers:
-        rect = mpatches.FancyBboxPatch(
-            (0.4, y),
-            8.0,
-            1.0,
-            boxstyle="round,pad=0.02,rounding_size=0.10",
-            linewidth=1.2,
-            edgecolor="#333333",
-            facecolor=color,
+    out_stem = HERE / "fig1_architecture"
+
+    # Graph-wide attributes. High DPI + Helvetica for print quality.
+    g = Digraph(
+        "pyfieldml_architecture",
+        format="png",
+        engine="dot",
+    )
+    g.attr(
+        rankdir="TB",
+        compound="true",
+        splines="spline",
+        nodesep="0.22",
+        ranksep="0.42",
+        bgcolor="white",
+        dpi="300",
+        pad="0.2",
+        fontname="Helvetica",
+    )
+    g.attr(
+        "node",
+        shape="box",
+        style="rounded,filled",
+        fontname="Helvetica",
+        fontsize="10",
+        fillcolor=_ARCH_INTERNAL_FILL,
+        color=_ARCH_INTERNAL_EDGE,
+        penwidth="1.1",
+        margin="0.12,0.05",
+    )
+    g.attr(
+        "edge",
+        color="#4a4a4a",
+        penwidth="0.9",
+        arrowsize="0.7",
+    )
+
+    def _layer(
+        name: str,
+        label: str,
+        members: list[tuple[str, str]],
+        fill: str = _ARCH_INTERNAL_FILL,
+        edge: str = _ARCH_INTERNAL_EDGE,
+    ) -> None:
+        with g.subgraph(name=f"cluster_{name}") as c:
+            c.attr(
+                label=label,
+                labelloc="t",
+                labeljust="l",
+                style="rounded,dashed",
+                color="#9aa7b5",
+                fontname="Helvetica-Bold",
+                fontsize="10",
+                margin="10",
+            )
+            for nid, nlabel in members:
+                c.node(nid, nlabel, fillcolor=fill, color=edge)
+
+    # ---- APPS -------------------------------------------------------
+    _layer(
+        "apps",
+        "Applications",
+        [
+            ("cli", "pyfieldml CLI\n(inspect | validate | convert)"),
+            ("jlite", "JupyterLite site\n(in-browser viewer)"),
+            ("nbs", "tutorial notebooks\n& MkDocs site"),
+        ],
+    )
+
+    # ---- FACADE -----------------------------------------------------
+    _layer(
+        "facade",
+        "Facade",
+        [("datasets", "pyfieldml.datasets\n(ten bundled .fieldml meshes)")],
+    )
+
+    # ---- USE --------------------------------------------------------
+    _layer(
+        "use",
+        "User-facing services",
+        [
+            ("builders", "builders"),
+            ("validation", "validation\nlinter"),
+            ("interop", "interop\nbridges"),
+            ("viz", "viz"),
+        ],
+    )
+
+    # ---- CORE -------------------------------------------------------
+    _layer(
+        "core",
+        "Evaluation engine",
+        [("eval", "eval\n(Lagrange + Hermite bases,\nlocate, Jacobian)")],
+    )
+
+    # ---- MODEL ------------------------------------------------------
+    _layer(
+        "model",
+        "Semantic model",
+        [
+            (
+                "model",
+                "model\n(Document, Region, typed Evaluators:\n"
+                "Parameter / External / Aggregate /\n"
+                "Reference / Piecewise / Argument)",
+            )
+        ],
+    )
+
+    # ---- DATA -------------------------------------------------------
+    _layer(
+        "data",
+        "Array backends",
+        [("data", "data\n(inline text | external text |\nHDF5 dense | HDF5 DOK sparse)")],
+    )
+
+    # ---- DOM --------------------------------------------------------
+    _layer(
+        "dom",
+        "XML DOM",
+        [("dom", "dom\n(XML parse/write,\nupconverter 0.3 \u2192 0.4 \u2192 0.5)")],
+    )
+
+    # ---- STD (external foundations) --------------------------------
+    _layer(
+        "std",
+        "Scientific-Python foundations",
+        [
+            ("numpy", "numpy"),
+            ("h5py", "h5py"),
+            ("lxml", "lxml"),
+        ],
+        fill=_ARCH_EXTERNAL_FILL,
+        edge=_ARCH_EXTERNAL_EDGE,
+    )
+
+    # ---- Interop bridge targets (shown as a horizontal rank) --------
+    with g.subgraph(name="cluster_bridges") as c:
+        c.attr(
+            label="Interop bridge targets",
+            labelloc="t",
+            labeljust="l",
+            style="rounded,dashed",
+            color="#9aa7b5",
+            fontname="Helvetica-Bold",
+            fontsize="10",
+            margin="10",
         )
-        ax.add_patch(rect)
-        ax.text(
-            0.6,
-            y + 0.70,
-            title,
-            fontsize=11,
-            fontweight="bold",
-            va="center",
-            ha="left",
-        )
-        ax.text(0.6, y + 0.30, content, fontsize=9, va="center", ha="left")
-        y += 1.20
+        c.attr(rank="same")
+        for nid, nlabel in [
+            ("meshio", "meshio"),
+            ("pyvista", "PyVista"),
+            ("xdmf", "XDMF3"),
+            ("skfem", "scikit-fem"),
+        ]:
+            c.node(nid, nlabel, fillcolor=_ARCH_INTEROP_FILL, color=_ARCH_INTEROP_EDGE)
 
-    # Interop side column
-    interop = [
-        ("meshio", "#ffe6cc"),
-        ("PyVista", "#ffe6cc"),
-        ("scikit-fem", "#ffe6cc"),
-        ("XDMF3 + HDF5", "#ffe6cc"),
-        ("OpenSim assets", "#ffe6cc"),
-    ]
-    ax.text(
-        9.5,
-        6.9,
-        "Interop bridges",
-        fontsize=11,
-        fontweight="bold",
-        ha="center",
-    )
-    y = 1.2
-    for label, color in interop:
-        rect = mpatches.FancyBboxPatch(
-            (8.9, y),
-            2.6,
-            0.75,
-            boxstyle="round,pad=0.02,rounding_size=0.08",
-            linewidth=1.0,
-            edgecolor="#333333",
-            facecolor=color,
-        )
-        ax.add_patch(rect)
-        ax.text(10.2, y + 0.38, label, fontsize=10, ha="center", va="center")
-        y += 0.95
+    # ---- Edges: vertical spine --------------------------------------
+    # Apps -> facade (all three funnel into datasets)
+    for app in ("cli", "jlite", "nbs"):
+        g.edge(app, "datasets")
 
-    ax.annotate(
-        "",
-        xy=(8.85, 3.6),
-        xytext=(8.45, 3.6),
-        arrowprops=dict(arrowstyle="->", lw=1.2, color="#333333"),
-    )
+    # Facade -> use-layer modules (fan out)
+    for svc in ("builders", "validation", "interop", "viz"):
+        g.edge("datasets", svc)
 
-    ax.text(
-        4.4,
-        7.4,
-        "pyfieldml layered architecture",
-        fontsize=13,
-        fontweight="bold",
-        ha="center",
-    )
-    ax.text(
-        4.4,
-        0.25,
-        "FieldML 0.3 / 0.4 / 0.5 XML documents",
-        fontsize=9,
-        ha="center",
-        style="italic",
-    )
+    # Use -> core (collapse into the evaluation engine)
+    for svc in ("builders", "validation", "viz"):
+        g.edge(svc, "eval")
 
-    fig.tight_layout()
-    fig.savefig(HERE / "fig1_architecture.png", dpi=DPI, bbox_inches="tight")
-    plt.close(fig)
+    # Core -> model
+    g.edge("eval", "model")
+
+    # Model -> data
+    g.edge("model", "data")
+
+    # Data -> dom
+    g.edge("data", "dom")
+
+    # Dom -> std foundations (lxml/h5py/numpy)
+    g.edge("dom", "lxml")
+    g.edge("data", "h5py")
+    g.edge("data", "numpy")
+
+    # Interop fans out sideways to bridge targets; use dashed style.
+    for tgt in ("meshio", "pyvista", "xdmf", "skfem"):
+        g.edge("interop", tgt, style="dashed", color="#8a6a2e")
+
+    # Render to PNG. graphviz writes `<out_stem>.png` and a source file.
+    g.render(
+        filename=out_stem.name,
+        directory=str(out_stem.parent),
+        format="png",
+        cleanup=True,
+    )
 
 
 # -----------------------------------------------------------------------
