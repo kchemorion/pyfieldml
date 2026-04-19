@@ -1,0 +1,60 @@
+name: JupyterLite
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: jupyterlite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+      - name: Install pyfieldml with jupyterlite extra
+        run: uv sync --extra jupyterlite
+      - name: Build JupyterLite site
+        run: uv run python docs/jupyterlite/build.py
+      - name: Verify build output exists
+        run: test -f docs/jupyterlite/_output/index.html
+      - name: Upload as github-pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs/jupyterlite/_output
+
+  # --- Deploy stub -------------------------------------------------------
+  #
+  # The `build` job above uploads the site as a `github-pages` artifact so
+  # it is ready to be published. Actual Pages deployment is intentionally
+  # left off until the repo owner enables Pages in the GitHub UI
+  # (Settings -> Pages -> Source: GitHub Actions).
+  #
+  # Once Pages is enabled, uncomment the block below to publish the site
+  # at https://<owner>.github.io/pyfieldml/ on every push to main. You may
+  # also want to coordinate with the existing `docs.yml` workflow which
+  # publishes the MkDocs site to Pages today — two workflows cannot both
+  # own the same Pages environment, so pick one (or host JupyterLite under
+  # a subpath of the MkDocs site instead).
+  #
+  # deploy:
+  #   if: github.ref == 'refs/heads/main'
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   environment:
+  #     name: github-pages
+  #     url: ${{ steps.deployment.outputs.page_url }}
+  #   steps:
+  #     - id: deployment
+  #       uses: actions/deploy-pages@v4
