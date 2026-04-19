@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from lxml import etree
 
@@ -19,6 +20,9 @@ from pyfieldml.model.types import (
     EnsembleType,
     MeshType,
 )
+
+if TYPE_CHECKING:
+    from pyfieldml.eval.field import Field
 
 PathLike = str | Path
 
@@ -90,6 +94,15 @@ class Document:
     @property
     def evaluators(self) -> Mapping[str, Evaluator]:
         return self._region.evaluators
+
+    def field(self, name: str) -> Field:
+        """Return a Field wrapper for the evaluator named ``name``.
+
+        Phase-2: requires the graph convention produced by ``add_lagrange_mesh``.
+        """
+        from pyfieldml.eval.field import resolve_field
+
+        return resolve_field(self.region, name=name)
 
     def write(self, path: PathLike) -> None:
         """Phase-1 write path: re-serializes the DOM tree we parsed from."""

@@ -64,6 +64,9 @@ dev = [
     "jupyter>=1",
 ]
 
+[project.scripts]
+pyfieldml = "pyfieldml.cli.main:main"
+
 [tool.hatch.version]
 path = "src/pyfieldml/_version.py"
 
