@@ -175,15 +175,84 @@ No FieldML-specific boilerplate is required; the document, its evaluator graph a
 
 \section{Illustrative examples}
 
-TODO: fill in three examples (model zoo, scikit-fem FEM, MSK assembly) in the next commit.
+The three illustrative examples in this section are drawn from the eight CI-executed tutorial notebooks that ship with \texttt{pyfieldml}.
+
+\subsection{Example 1: The bundled model zoo}
+
+\texttt{pyfieldml} ships with ten curated datasets inside its wheel (Fig.~\ref{fig:zoo}). They range from a 8-node \texttt{unit\_cube} sanity check, through synthetic but anatomically-plausible \texttt{femur} and \texttt{rectus\_femoris} meshes, to the public-domain Stanford Bunny and six real human skeletal segments harvested from BodyParts3D \cite{bodyparts3d}, a CC-BY-SA 2.1 JP anatomical database curated by the Database Center for Life Science (DBCLS) in Japan. A researcher can enumerate, load and visualise the entire zoo in three lines:
+
+\begin{lstlisting}[style=pystyle]
+from pyfieldml import datasets
+for name in datasets.list():
+    datasets.load(name).plot()
+\end{lstlisting}
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.98\textwidth]{figures/fig2_zoo_gallery.png}
+\caption{The ten bundled datasets shipped inside the \texttt{pyfieldml} wheel. Top row (synthetic and public-domain): \texttt{unit\_cube}, \texttt{femur}, \texttt{rectus\_femoris}, Stanford Bunny \cite{stanford_bunny}, \texttt{femur\_bodyparts3d}. Bottom row (BodyParts3D \cite{bodyparts3d}, CC-BY-SA 2.1 JP): \texttt{vertebra\_l3}, \texttt{scapula}, \texttt{tibia\_left}, \texttt{hip\_bone\_left}, \texttt{skull}. Node and cell counts shown below each panel.}
+\label{fig:zoo}
+\end{figure}
+
+The zoo is designed to lower the barrier to reproducible biomechanics experiments: every published pyfieldml workflow can point to a bundled asset rather than to an external download. Each dataset carries a machine-readable \texttt{DatasetInfo} record (SPDX license, citation, origin URL) enabling downstream tooling to surface provenance correctly.
+
+Fig.~\ref{fig:graph} illustrates the \emph{evaluator graph} of one dataset, \texttt{rectus\_femoris}. Nodes are typed evaluators and edges are named dependencies, exactly in the sense of Christie et al.~\cite{fieldml_christie_2009}. This graph view is produced by a single-call interactive widget (\texttt{doc.explore()}) inside a Jupyter notebook, or rendered with NetworkX for publication, and makes FieldML's structure visible to users who may never have opened a FieldML XML file.
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.80\textwidth]{figures/fig3_evaluator_graph.png}
+\caption{Evaluator graph of the bundled \texttt{rectus\_femoris} dataset. Nodes are coloured by evaluator subtype (parameter / external / aggregate / reference / piecewise / argument / constant) following the FieldML 0.5 taxonomy. Edges are named dependencies: the \texttt{coordinates} parameter depends on its \texttt{coordinates.connectivity} ensemble, which in turn binds into the element topology via an \texttt{ExternalEvaluator} basis.}
+\label{fig:graph}
+\end{figure}
+
+\subsection{Example 2: FEM solve via scikit-fem}
+
+A FieldML document can be handed directly to scikit-fem \cite{scikit_fem} for PDE assembly through the \texttt{pyfieldml.interop.scikit\_fem} bridge, which returns a \texttt{(Mesh, Basis)} pair. The Poisson problem $-\Delta u = 1$ on a unit cube, for instance, reduces to a standard scikit-fem boilerplate once the mesh has been obtained from FieldML (Fig.~\ref{fig:fem}). The pattern generalises to any FieldML mesh whose basis is supported by scikit-fem, including the triangular-surface BodyParts3D bones. Crucially, neither the user nor the solver is aware that the mesh began life as a FieldML 0.5 evaluator graph---the bridge is transparent.
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.98\textwidth]{figures/fig5_fem_solution.png}
+\caption{FEM workflow starting from a FieldML mesh. Left: a refined tetrahedral mesh derived from the bundled \texttt{unit\_cube} via the \texttt{pyfieldml $\rightarrow$ scikit-fem} bridge. Right: Poisson solution $-\Delta u = 1$ with zero Dirichlet boundary, rendered on three orthogonal slices.}
+\label{fig:fem}
+\end{figure}
+
+\subsection{Example 3: Clinical musculoskeletal assembly}
+
+The most important consumer of \texttt{pyfieldml} is the computational biomechanics community. Fig.~\ref{fig:msk} shows a real-world use case: four BodyParts3D \cite{bodyparts3d} skeletal segments---left hip bone, left femur, left tibia, and lumbar vertebra L3---loaded in a single Python session, composed in a shared coordinate frame, and rendered together. The entire assembly is constructed from bundled datasets, with no external downloads and no C++ build, in roughly ten lines of Python. For MSK researchers this replaces what would otherwise be a multi-tool pipeline involving external STL exporters, manual scaling, and format conversions.
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/fig6_msk_assembly.png}
+\caption{Clinical musculoskeletal assembly rendered from four bundled BodyParts3D \cite{bodyparts3d} datasets (left hip, left femur, left tibia, lumbar vertebra L3). The scene is assembled in roughly ten lines of Python on top of \texttt{pyfieldml.datasets}. BodyParts3D data is \copyright{} The Database Center for Life Science (DBCLS), licensed under CC-BY-SA 2.1 JP.}
+\label{fig:msk}
+\end{figure}
+
+Beyond assembly, the Hermite basis of the evaluation engine enables smooth-deformation studies. Fig.~\ref{fig:hermite} shows a two-node cubic-Hermite line element, the simplest setting in which the C1-continuous Hermite basis is visible, loaded as a tip-force cantilever. pyfieldml samples the deflection at 41 xi points; the resulting curve is C1-continuous by construction, matching the theoretical Euler-Bernoulli profile. The same Hermite machinery is what enables smooth heart-wall geometries in Physiome-Project cardiac models \cite{nash_hunter_2001}.
+
+\begin{figure}[!h]
+\centering
+\includegraphics[width=0.98\textwidth]{figures/fig4_hermite_bending.png}
+\caption{Cantilever bending with the \texttt{pyfieldml} cubic-Hermite basis. Left: undeformed two-node Hermite line element. Right: tip-loaded deflection, sampled at 41 parametric ($\xi$) points via \texttt{Field.evaluate}. The profile is C1-continuous by basis construction.}
+\label{fig:hermite}
+\end{figure}
 
 \section{Impact}
 
-TODO: fill in next commit.
+\texttt{pyfieldml} has three immediate impacts on the computational-physiology and biomechanics communities.
+
+\textbf{Re-opening the Physiome Project corpus to modern Python.} FieldML is the \emph{lingua franca} of the Physiome Project \cite{hunter_borg_2003,fieldml_christie_2009} and is the native format of a substantial corpus of published models distributed through the Auckland Bioengineering Institute and the OpenCMISS ecosystem \cite{bradley_opencmiss_2011}. That corpus has been locked behind a C++ build for a decade. By providing a pure-Python reader with transparent 0.3 $\rightarrow$ 0.4 $\rightarrow$ 0.5 up-conversion, \texttt{pyfieldml} lets any Python researcher load a FieldML document from the Physiome Model Repository and feed it directly into a modern pipeline (PyVista \cite{pyvista}, scikit-fem \cite{scikit_fem}, FEniCS, OpenSim \cite{delp_opensim_2007,seth_opensim_2018}). The same \texttt{fml.datasets.load(name).to\_meshio()} call that drives this paper's figures suffices.
+
+\textbf{Enabling reproducible musculoskeletal research workflows.} The ten-dataset bundled model zoo is deliberately oriented toward the BodyParts3D \cite{bodyparts3d} skeletal subset most relevant to lower-limb biomechanics. The zoo lets an MSK researcher depend on a single \texttt{pip install pyfieldml} for geometry assets and pair them directly with OpenSim \cite{seth_opensim_2018} muscle-model plugins through the package's OpenSim-adjacent asset exporter (geometry \texttt{.vtu}, muscle attachments CSV, fibre-line polylines). At UPF we have already used this path to prototype fibre-field studies on the bundled \texttt{rectus\_femoris} muscle without needing to distribute mesh assets to collaborators. The new research questions this enables---parameter studies over entire cohorts of BodyParts3D-derived meshes, reproducible benchmarks for MSK pipelines---have been impractical to pursue with the C++ FieldML-API.
+
+\textbf{First in-browser FieldML viewer.} The shipped JupyterLite \cite{jupyterlite} site makes \texttt{pyfieldml} the first FieldML toolchain that can be inspected, evaluated and visualised entirely in a web browser with no local install. This lowers the barrier for teaching (a FieldML tutorial can be run as a URL) and for reviewing: a reviewer of a biomechanics paper can open the authors' JupyterLite sandbox, load the FieldML asset, and re-run the evaluation interactively. For FieldML 0.5, no such capability existed before.
+
+The intended user communities are: the Auckland Bioengineering Institute and the broader Physiome / OpenCMISS community; OpenSim \cite{seth_opensim_2018} and 3D~Slicer \cite{fedorov_3dslicer_2012} practitioners who now consume FieldML assets via meshio; the MSK biomechanics group at Universitat Pompeu Fabra; computational-cardiology groups working with Nash--Hunter-style cardiac mechanics \cite{nash_hunter_2001}; and the broader scientific-Python ecosystem that relies on PyVista \cite{pyvista}, meshio \cite{meshio} and scikit-fem \cite{scikit_fem}. The package is distributed on PyPI with OIDC-backed trusted publishing, and carries a CITATION.cff, Apache 2.0 license, and a continuous-integration matrix covering Python 3.10--3.13 across Linux, macOS and Windows. It has 220+ automated tests and a SHA256-stamped reproducibility benchmark that verifies deterministic output across platforms.
 
 \section{Conclusions}
 
-TODO: fill in next commit.
+\texttt{pyfieldml} is a pure-Python reimplementation of the FieldML 0.5 standard that closes the decade-long gap between the conceptual foundation of FieldML \cite{fieldml_christie_2009} and the modern scientific-Python ecosystem. It provides a complete evaluator-graph DOM with 0.3/0.4/0.5 up-conversion, an evaluation engine spanning 15 basis functions on six topologies, a curated ten-dataset musculoskeletal model zoo, interop bridges to meshio, PyVista, XDMF and scikit-fem, a CLI with semantic linter, and the first in-browser FieldML viewer.
+
+The immediate roadmap includes parametric statistical shape models \cite{cootes_ssm_1995} over the BodyParts3D-derived zoo, a full two-way cross-validation workflow against the C++ reference implementation, and native integration with OpenSim's musculoskeletal dynamics pipeline. All code is Apache-2.0 licensed and contributions are welcome at \url{https://github.com/kchemorion/pyfieldml}.
 
 \section*{Acknowledgements}
 
