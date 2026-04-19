@@ -145,3 +145,16 @@ class Document:
                 "doc.plot() requires the [viz] extra: pip install pyfieldml[viz]"
             ) from exc
         return plot_doc(self, **kwargs)
+
+    def explore(self) -> Any:
+        """Open an interactive Jupyter widget to browse the evaluator graph.
+
+        Requires the [viz] extra: ``pip install pyfieldml[viz]``.
+        """
+        try:
+            from pyfieldml.viz.explorer import explore
+        except ImportError as exc:
+            raise ImportError(
+                "doc.explore() requires the [viz] extra: pip install pyfieldml[viz]"
+            ) from exc
+        return explore(self)
