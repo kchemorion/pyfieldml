@@ -41,6 +41,9 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: uv sync --extra dev
       - run: uv run pytest --cov=pyfieldml --cov-report=xml
+      - name: Run notebook tests (nbmake)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        run: uv run pytest --nbmake docs/notebooks -v
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
         uses: codecov/codecov-action@v4

@@ -6,6 +6,40 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-19
+
+### Added
+- `pyfieldml.builders.biomech`: biomechanics-flavored helpers —
+  `add_scalar_field`, `add_vector_field`, `add_fiber_field`,
+  `add_material_field`, `add_landmark_set`.
+- `pyfieldml.datasets`: curated model-zoo registry with `list()`, `info()`,
+  `download()`, `load()`, `cache_dir()`. Three synthetic bundled datasets
+  shipping in the wheel: `unit_cube` (CC0), `femur` (synthetic cylinder with
+  BMD-derived Young's-modulus field), `rectus_femoris` (synthetic spindle
+  with fiber-direction field). Convenience loaders: `load_unit_cube`,
+  `load_femur`, `load_rectus_femoris`.
+- `pyfieldml.validation.lint.lint_document` — semantic linter flagging
+  orphan composite evaluators and inverted elements (negative Jacobian at
+  centroid).
+- `pyfieldml.validation.diff.diff_documents` — semantic diff between two
+  Documents (type sets, evaluator shape changes, parameter-value differences).
+- CLI subcommands: `pyfieldml inspect / validate / convert / plot / lint /
+  diff` (in addition to the existing `bench`).
+- Three tutorial notebooks under `docs/notebooks/` (quickstart, evaluator
+  graph, muscle fibers), CI-executed via `nbmake` on every PR.
+- `tools/generate_synthetic_datasets.py` — reproducible generator for the
+  synthetic bundled datasets.
+
+### Known limitations
+- The zoo's `femur` and `rectus_femoris` are **synthetic** shapes authored
+  for demonstration. Real Physiome / biomechanics assets are not included
+  pending licensing clearance with contributing groups.
+- Cardiac dataset (`myocardium`) and the remaining 5 tutorial notebooks
+  (build-a-femur, cardiac Hermite, scikit-fem solve, OpenSim bridge,
+  legacy-conversion) are deferred to a later minor release.
+- Reproducibility benchmark notebook (classical MSK FE result) is deferred
+  pending dataset + paper selection with the domain specialist.
+
 ## [0.4.0] - 2026-04-19
 
 ### Added
@@ -128,7 +162,8 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Community files: CONTRIBUTING, CODE_OF_CONDUCT, CHANGELOG, MAINTAINING,
   issue + PR templates.
 
-[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.5.0
 [0.4.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.4.0
 [0.3.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.3.0
 [0.2.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.2.0

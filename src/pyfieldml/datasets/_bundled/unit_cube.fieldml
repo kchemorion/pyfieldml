@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Fieldml version="0.5.0">
+  <Region name="unit_cube">
+    <ContinuousType name="coordinates.value_type">
+      <Components name="coordinates.component" count="3"/>
+    </ContinuousType>
+    <EnsembleType name="mesh.elements">
+      <Members>
+        <MemberRange min="1" max="1" stride="1"/>
+      </Members>
+    </EnsembleType>
+    <EnsembleType name="mesh.nodes">
+      <Members>
+        <MemberRange min="1" max="8" stride="1"/>
+      </Members>
+    </EnsembleType>
+    <ContinuousType name="mesh.xi">
+      <Components name="mesh.xi.c" count="3"/>
+    </ContinuousType>
+    <MeshType name="mesh">
+      <Elements name="mesh.elements"/>
+      <Chart name="mesh.xi"/>
+    </MeshType>
+    <ParameterEvaluator name="coordinates" valueType="coordinates.value_type">
+      <DenseArrayData>
+        <DataSource name="coordinates_src" location="/" rank="2">
+          <ArrayDataSize>8 3</ArrayDataSize>
+        </DataSource>
+        <DataResourceString>0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 0.0 1.0 1.0 0.0 0.0 0.0 1.0 1.0 0.0 1.0 0.0 1.0 1.0 1.0 1.0 1.0</DataResourceString>
+      </DenseArrayData>
+    </ParameterEvaluator>
+    <ContinuousType name="coordinates.connectivity.vt"/>
+    <ParameterEvaluator name="coordinates.connectivity" valueType="coordinates.connectivity.vt">
+      <DenseArrayData>
+        <DataSource name="coordinates.connectivity_src" location="/" rank="2">
+          <ArrayDataSize>1 8</ArrayDataSize>
+        </DataSource>
+        <DataResourceString>1 2 3 4 5 6 7 8</DataResourceString>
+      </DenseArrayData>
+    </ParameterEvaluator>
+    <ExternalEvaluator name="library.basis.linear_lagrange.hex" valueType="coordinates.value_type"/>
+  </Region>
+</Fieldml>
