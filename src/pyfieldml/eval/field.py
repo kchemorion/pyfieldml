@@ -77,6 +77,23 @@ class Field:
             and self._node_derivatives is not None
         )
 
+    def _is_hermite_quad(self) -> bool:
+        return (
+            getattr(self._basis, "topology", None) == "quad"
+            and getattr(self._basis, "order", None) == 3
+            and self._node_derivatives is not None
+        )
+
+    def _is_hermite_hex(self) -> bool:
+        return (
+            getattr(self._basis, "topology", None) == "hex"
+            and getattr(self._basis, "order", None) == 3
+            and self._node_derivatives is not None
+        )
+
+    def _is_hermite(self) -> bool:
+        return self._is_hermite_line() or self._is_hermite_quad() or self._is_hermite_hex()
+
     def _assemble_hermite_line_dofs(self, element_arr: np.ndarray) -> np.ndarray:
         """Build per-point (M, 4, D) DOF block with scales applied.
 
@@ -104,6 +121,84 @@ class Field:
         dofs = np.stack([v_a, d_a * s_a, v_b, d_b * s_b], axis=1)  # (M, 4, D)
         return dofs
 
+    # User-supplied derivative slot order -> basis per-corner DOF index.
+    # Slot 0 of a corner is always the 'value' DOF pulled from self._nodes.
+    # Remaining basis per-corner DOFs are populated from self._node_derivatives
+    # (stored flat as (N_nodes, n_slots * D), reshaped to (N_nodes, n_slots, D)).
+    # Quad: user slots (d/dxi1, d/dxi2, d2/dxi1dxi2) -> basis per-corner indices
+    # (1, 2, 3) — identity, since the basis orders per-corner DOFs as
+    # f_u + 2*f_v.
+    # Hex: user slots
+    #   (d/dxi1, d/dxi2, d/dxi3, d2/dxi1dxi2, d2/dxi1dxi3, d2/dxi2dxi3,
+    #    d3/dxi1dxi2dxi3)
+    # map to basis per-corner indices (1, 2, 4, 3, 5, 6, 7) because the basis
+    # orders per-corner DOFs as f_u + 2*f_v + 4*f_w.
+    _HERMITE_QUAD_SLOT_TO_BASIS: tuple[int, ...] = (1, 2, 3)
+    _HERMITE_HEX_SLOT_TO_BASIS: tuple[int, ...] = (1, 2, 4, 3, 5, 6, 7)
+
+    def _assemble_hermite_tensor_dofs(
+        self,
+        element_arr: np.ndarray,
+        *,
+        n_corners: int,
+        dofs_per_corner: int,
+        slot_to_basis: tuple[int, ...],
+    ) -> np.ndarray:
+        """Assemble (M, n_corners * dofs_per_corner, D) DOF block for quad/hex.
+
+        Value DOF at basis index 0 within each corner comes from ``self._nodes``.
+        Derivative slots come from ``self._node_derivatives`` reshaped to
+        ``(N_nodes, n_slots, D)`` and remapped via ``slot_to_basis`` into the
+        basis per-corner DOF layout. ``self._scale_factors``, if present, has
+        shape ``(n_elems, n_dofs_per_elem)`` and multiplies each DOF.
+        """
+        assert self._node_derivatives is not None
+        d = self._nodes.shape[1]
+        n_slots = dofs_per_corner - 1
+        n_nodes_total = self._nodes.shape[0]
+        # node_derivs_slots: (N_nodes, n_slots, D)
+        node_derivs_slots = self._node_derivatives.reshape(n_nodes_total, n_slots, d)
+
+        conn = self._conn[element_arr - 1]  # (M, n_corners)
+        m = element_arr.shape[0]
+        n_dofs_per_elem = n_corners * dofs_per_corner
+        dofs = np.empty((m, n_dofs_per_elem, d), dtype=np.float64)
+
+        for corner_idx in range(n_corners):
+            node_ids = conn[:, corner_idx] - 1  # (M,)
+            # value DOF -> basis per-corner index 0
+            base = corner_idx * dofs_per_corner
+            dofs[:, base + 0, :] = self._nodes[node_ids]
+            # derivative slots
+            for slot, basis_idx in enumerate(slot_to_basis):
+                dofs[:, base + basis_idx, :] = node_derivs_slots[node_ids, slot, :]
+
+        if self._scale_factors is not None:
+            s = self._scale_factors[element_arr - 1]  # (M, n_dofs_per_elem)
+            dofs = dofs * s[:, :, None]
+
+        return dofs
+
+    def _assemble_hermite_dofs(self, element_arr: np.ndarray) -> np.ndarray:
+        """Dispatch to per-topology Hermite DOF assembly."""
+        if self._is_hermite_line():
+            return self._assemble_hermite_line_dofs(element_arr)
+        if self._is_hermite_quad():
+            return self._assemble_hermite_tensor_dofs(
+                element_arr,
+                n_corners=4,
+                dofs_per_corner=4,
+                slot_to_basis=self._HERMITE_QUAD_SLOT_TO_BASIS,
+            )
+        if self._is_hermite_hex():
+            return self._assemble_hermite_tensor_dofs(
+                element_arr,
+                n_corners=8,
+                dofs_per_corner=8,
+                slot_to_basis=self._HERMITE_HEX_SLOT_TO_BASIS,
+            )
+        raise AssertionError("_assemble_hermite_dofs called on non-Hermite field")
+
     def evaluate(
         self,
         *,
@@ -118,8 +213,8 @@ class Field:
 
         phi = self._basis.shape_functions(xi_arr)  # (M, N)
 
-        if self._is_hermite_line():
-            dofs = self._assemble_hermite_line_dofs(element_arr)  # (M, 4, D)
+        if self._is_hermite():
+            dofs = self._assemble_hermite_dofs(element_arr)  # (M, n_dofs, D)
             result: np.ndarray = np.einsum("mn,mnd->md", phi, dofs)
         else:
             # Elements are 1-indexed; node IDs inside conn are 1-indexed too.
@@ -141,8 +236,8 @@ class Field:
         d_phi = self._basis.shape_derivatives(xi_arr)  # (M, N, R)
         element_arr = np.atleast_1d(np.asarray(element, dtype=np.int64))
 
-        if self._is_hermite_line():
-            dofs = self._assemble_hermite_line_dofs(element_arr)  # (1, 4, D)
+        if self._is_hermite():
+            dofs = self._assemble_hermite_dofs(element_arr)  # (1, n_dofs, D)
             # J[d, r] = sum over n of d_phi[0, n, r] * dofs[0, n, d]
             j = np.einsum("mnr,mnd->mdr", d_phi, dofs)
             result: np.ndarray = j[0]
@@ -156,7 +251,7 @@ class Field:
 
     def sample(self, points: ArrayLike) -> np.ndarray:
         """Sample the field at physical points. Points outside the mesh return NaN."""
-        if self._is_hermite_line():
+        if self._is_hermite():
             raise NotImplementedError(
                 "Field.sample is not supported on Hermite meshes in v1.0.x. "
                 "Use Field.evaluate(element=..., xi=...) with a known element + xi instead. "
