@@ -6,16 +6,27 @@ Run from repo root:
 
 This fetches public-domain and CC-BY-SA anatomical meshes, converts them
 to FieldML format via meshio, and writes them to
-src/pyfieldml/datasets/_bundled/. Network required.
+src/pyfieldml/datasets/_bundled/. Network required (unless the BodyParts3D
+archive is pre-cached; see ``BP3D_ZIP_CACHE`` below).
+
+Env vars
+--------
+BP3D_ZIP_CACHE
+    Path to a pre-downloaded ``partof_BP3D_4.0_obj_99.zip``. When set, the
+    tool reads the zip from disk instead of fetching ~62 MB over the
+    network. Lets developers iterate on the decimation / conversion step
+    without hitting DBCLS repeatedly.
 """
 
 from __future__ import annotations
 
 import io
+import os
 import sys
 import tarfile
 import tempfile
 import urllib.request
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -36,12 +47,16 @@ MAX_BUNDLE_BYTES = 150_000
 # Budget for the BodyParts3D femur: larger than the bunny because
 # watertight edge-collapse decimation needs more triangles than random-drop.
 MAX_BP3D_BYTES = 200_000
+# v1.2+ additions (vertebra, scapula, tibia, hip, skull). Slightly larger
+# than the femur budget because some of these shapes need more triangles
+# to stay watertight (scapula shell, multi-part skull).
+MAX_BP3D_EXT_BYTES = 300_000
 
 
 def _download(url: str, *, timeout: float = 60.0) -> bytes:
     """Download ``url`` and return its bytes. Raises on HTTP errors."""
     print(f"  GET {url}", flush=True)
-    req = urllib.request.Request(url, headers={"User-Agent": "pyfieldml-fetch/1.1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "pyfieldml-fetch/1.2"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return bytes(resp.read())
 
@@ -115,7 +130,7 @@ def fetch_stanford_bunny() -> Path | None:
     return out
 
 
-# ---------------- BodyParts3D femur ----------------
+# ---------------- BodyParts3D ----------------
 
 # Per-FMA OBJ endpoints on lifesciencedb.jp are defunct as of 2024-2025;
 # the DBCLS archive at biosciencedbc.jp only publishes bulk zips. We fetch
@@ -128,15 +143,31 @@ BP3D_ARCHIVE_URL = (
 BP3D_ARCHIVE_URL_FALLBACK = (
     "https://dbarchive.biosciencedbc.jp/data/bodyparts3d/LATEST/isa_BP3D_4.0_obj_99.zip"
 )
-# FMA24475 == "left femur" (FMA Ontology). The part-of index maps it to
-# element file FJ3259; right femur (FMA24474) would be FJ3365. We hard-code
-# the element id so the tool doesn't need a second round-trip for the index.
-BP3D_FEMUR_ELEMENT = "FJ3259"
+
+# Hard-coded BP3D element ids for the v1.2+ bundle. See partof_parts_list_e.txt
+# in the DBCLS distribution for the full FMA -> element-file-id mapping.
+BP3D_FEMUR_ELEMENT = "FJ3259"  # FMA24475 left femur
 BP3D_FEMUR_LABEL = "left femur (FMA24475)"
+
+BP3D_VERTEBRA_L3_ELEMENT = "FJ3159"  # FMA9921 lumbar vertebra (L-series member)
+BP3D_VERTEBRA_L3_LABEL = "lumbar vertebra (BodyParts3D FJ3159)"
+
+BP3D_SCAPULA_ELEMENT = "FJ3279"  # FMA13396 left scapula
+BP3D_SCAPULA_LABEL = "left scapula (FMA13396)"
+
+BP3D_TIBIA_LEFT_ELEMENT = "FJ3282"  # FMA24478 left tibia
+BP3D_TIBIA_LEFT_LABEL = "left tibia (FMA24478)"
+
+BP3D_HIP_BONE_LEFT_ELEMENT = "FJ3152"  # FMA16586 hip bone
+BP3D_HIP_BONE_LEFT_LABEL = "hip bone (FMA16586, BodyParts3D FJ3152)"
 
 
 def _decimate_triangles(
-    points: np.ndarray, triangles: np.ndarray, target: int
+    points: np.ndarray,
+    triangles: np.ndarray,
+    target: int,
+    *,
+    multi_component: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Return a topology-preserving edge-collapse decimation to ~``target`` triangles.
 
@@ -146,6 +177,26 @@ def _decimate_triangles(
     Falls back silently to the input mesh if pyvista can't be imported
     (the caller still gets a full, non-swiss-cheese mesh, just a little
     bigger).
+
+    Parameters
+    ----------
+    points
+        ``(N, 3)`` vertex array.
+    triangles
+        ``(M, 3)`` integer connectivity array into ``points``.
+    target
+        Desired triangle count after decimation. Acts as a lower bound
+        the algorithms may not exactly hit — the output typically
+        bounces within ~20%% of this value.
+    multi_component
+        When ``True`` (for compound meshes like the skull) we use VTK's
+        ``decimate_pro`` with boundary-vertex deletion and a permissive
+        feature angle, which handles non-manifold / multi-component input
+        that ``decimate`` refuses. The tradeoff is that ``decimate_pro``
+        is less aggressive at preserving local curvature; for monolithic
+        anatomical meshes ``decimate`` (the default) gives cleaner
+        results.
+
     """
     if triangles.shape[0] <= target:
         return points, triangles
@@ -161,7 +212,19 @@ def _decimate_triangles(
     faces = np.hstack([np.full((triangles.shape[0], 1), 3, dtype=np.int64), triangles]).flatten()
     poly = pv.PolyData(points, faces)
     target_reduction = 1.0 - (target / triangles.shape[0])
-    dec = poly.decimate(target_reduction, volume_preservation=True)
+    if multi_component:
+        # ``decimate`` raises on non-manifold input. ``decimate_pro`` with
+        # boundary_vertex_deletion + feature_angle=180 tolerates the
+        # many-disconnected-parts skull mesh.
+        dec = poly.decimate_pro(
+            target_reduction,
+            preserve_topology=False,
+            splitting=False,
+            boundary_vertex_deletion=True,
+            feature_angle=180.0,
+        )
+    else:
+        dec = poly.decimate(target_reduction, volume_preservation=True)
 
     pts_out = np.asarray(dec.points, dtype=np.float64)
     faces_flat = np.asarray(dec.faces, dtype=np.int64)
@@ -169,58 +232,114 @@ def _decimate_triangles(
     return pts_out, tris_out
 
 
-def _extract_bp3d_femur_obj(zip_blob: bytes) -> tuple[str, bytes] | None:
-    """Return ``(member_name, obj_bytes)`` for the femur OBJ inside the BP3D archive.
+def _count_components(points: np.ndarray, triangles: np.ndarray) -> int:
+    """Return the number of connected components of the triangle mesh's vertex graph.
 
-    Members are named ``<tree>/<FJid>.obj``. We look up our hard-coded
-    element id (derived from the DBCLS ``element_parts`` index) and
-    return the first matching member.
+    Tries scipy; falls back to a pure-numpy union-find if scipy is absent.
     """
-    import zipfile
+    n = int(points.shape[0])
+    if triangles.size == 0:
+        return 0
+    try:
+        import scipy.sparse
+        import scipy.sparse.csgraph
 
-    target = f"{BP3D_FEMUR_ELEMENT}.obj"
-    with zipfile.ZipFile(io.BytesIO(zip_blob)) as zf:
-        for name in zf.namelist():
-            if name.endswith(target):
-                return name, zf.read(name)
-    return None
+        row = np.concatenate(
+            [
+                triangles[:, 0],
+                triangles[:, 1],
+                triangles[:, 0],
+                triangles[:, 1],
+                triangles[:, 2],
+                triangles[:, 2],
+            ]
+        )
+        col = np.concatenate(
+            [
+                triangles[:, 1],
+                triangles[:, 0],
+                triangles[:, 2],
+                triangles[:, 2],
+                triangles[:, 0],
+                triangles[:, 1],
+            ]
+        )
+        data = np.ones(row.shape[0], dtype=np.float64)
+        adj = scipy.sparse.coo_matrix((data, (row, col)), shape=(n, n)).tocsr()
+        n_components, _ = scipy.sparse.csgraph.connected_components(adj)
+        return int(n_components)
+    except ImportError:
+        parent = np.arange(n, dtype=np.int64)
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = int(parent[x])
+            return x
+
+        for tri in triangles.astype(np.int64):
+            a, b, c = int(tri[0]), int(tri[1]), int(tri[2])
+            for i, j in ((a, b), (b, c), (a, c)):
+                ri, rj = find(i), find(j)
+                if ri != rj:
+                    parent[ri] = rj
+        return len({find(i) for i in range(n)})
 
 
-def fetch_bodyparts3d_femur() -> Path | None:
-    """Fetch the BodyParts3D femur, decimate, convert to FieldML.
+def _load_bp3d_zip() -> bytes | None:
+    """Return the bytes of the BodyParts3D part-of zip.
 
-    Returns the output path on success, or ``None`` on failure. Never
-    raises - the caller treats failure as a skippable non-fatal event.
+    Reads from the ``BP3D_ZIP_CACHE`` env var if set, otherwise downloads
+    from DBCLS (with a fallback URL). Returns ``None`` if every source
+    fails, so the caller can skip gracefully.
     """
-    print("BodyParts3D femur")
-    print("  source: https://dbarchive.biosciencedbc.jp/en/bodyparts3d/")
-    import meshio
+    cache_env = os.environ.get("BP3D_ZIP_CACHE")
+    if cache_env:
+        cache_path = Path(cache_env)
+        if cache_path.is_file():
+            print(f"  using cached archive {cache_path}")
+            return cache_path.read_bytes()
+        print(
+            f"  WARNING: BP3D_ZIP_CACHE={cache_env} does not exist; falling back to network",
+            file=sys.stderr,
+        )
 
-    zip_blob: bytes | None = None
     for url in (BP3D_ARCHIVE_URL, BP3D_ARCHIVE_URL_FALLBACK):
         try:
             print(f"  fetching {url} (may be 60+ MB)")
-            zip_blob = _download(url, timeout=300.0)
-            print(f"  downloaded {len(zip_blob):,} bytes")
-            break
+            blob = _download(url, timeout=300.0)
+            print(f"  downloaded {len(blob):,} bytes")
+            return blob
         except Exception as exc:
             print(f"  FAILED: {url} -> {exc}", file=sys.stderr)
-            zip_blob = None
+    return None
 
-    if zip_blob is None:
-        print("  SKIPPED: BodyParts3D archives unreachable", file=sys.stderr)
-        return None
 
-    try:
-        extracted = _extract_bp3d_femur_obj(zip_blob)
-    except Exception as exc:
-        print(f"  SKIPPED: archive extraction failed: {exc}", file=sys.stderr)
-        return None
-    if extracted is None:
-        print("  SKIPPED: no femur OBJ found in archive", file=sys.stderr)
-        return None
-    member_name, obj_bytes = extracted
-    print(f"  using {member_name} = {BP3D_FEMUR_LABEL} ({len(obj_bytes):,} bytes OBJ)")
+def _extract_obj_from_bp3d_zip(zip_path_or_blob: Path | bytes, fj_id: str) -> bytes | None:
+    """Return the OBJ bytes for ``fj_id`` inside the BP3D archive, or ``None``.
+
+    Members are named ``<tree>/<FJid>.obj``; we match suffix so the helper
+    is independent of how the archive happens to be nested.
+    """
+    target = f"{fj_id}.obj"
+    if isinstance(zip_path_or_blob, Path):
+        zf_ctx = zipfile.ZipFile(zip_path_or_blob)
+    else:
+        zf_ctx = zipfile.ZipFile(io.BytesIO(zip_path_or_blob))
+    with zf_ctx as zf:
+        for name in zf.namelist():
+            if name.endswith(f"/{target}") or name.endswith(target):
+                return zf.read(name)
+    return None
+
+
+def _read_obj_bytes(obj_bytes: bytes) -> tuple[np.ndarray, np.ndarray] | None:
+    """Parse OBJ ``obj_bytes`` with meshio and return ``(points, triangles)``.
+
+    Returns ``None`` if meshio can't parse it or the file contains no
+    triangles.
+    """
+    import meshio
 
     with tempfile.NamedTemporaryFile(suffix=".obj", delete=False) as tmp:
         tmp.write(obj_bytes)
@@ -236,52 +355,179 @@ def fetch_bodyparts3d_femur() -> Path | None:
 
     tri_blocks = [b for b in mesh.cells if b.type == "triangle"]
     if not tri_blocks:
-        print("  SKIPPED: no triangle cells in BodyParts3D mesh", file=sys.stderr)
         return None
     pts = np.asarray(mesh.points, dtype=np.float64)
     tris = np.asarray(tri_blocks[0].data, dtype=np.int64)
+    return pts, tris
 
-    # Decimate with topology-preserving edge collapse. Target 2500 triangles
-    # (budget expanded to 3000 in v1.2): the random-drop decimation used in
-    # v1.1 produced a non-watertight "swiss-cheese" surface with thousands
-    # of hole edges; we now use quadric decimation via pyvista/VTK.
+
+def _write_bp3d_dataset(
+    pts: np.ndarray,
+    tris: np.ndarray,
+    *,
+    out_name: str,
+    target_tris: int,
+    max_bytes: int,
+    label: str,
+    multi_component: bool = False,
+) -> Path:
+    """Decimate to ``target_tris``, write ``out_name.fieldml``, retry-halve if oversized.
+
+    Emits a progress log line with point / triangle / byte count and the
+    number of connected components so a reviewer can verify the mesh is
+    one piece (or see exactly how many pieces it decomposed into).
+    Returns the output path.
+    """
+    import meshio
+
     print(f"  input: {pts.shape[0]} points, {tris.shape[0]} triangles")
-    target_tris = 2500
-    pts_d, tris_d = _decimate_triangles(pts, tris, target=target_tris)
-
+    pts_d, tris_d = _decimate_triangles(
+        pts, tris, target=target_tris, multi_component=multi_component
+    )
     mesh_tri = meshio.Mesh(points=pts_d, cells=[("triangle", tris_d)])
-    doc = fml.Document.from_meshio(mesh_tri, name="femur_bodyparts3d")
-    out = OUT / "femur_bodyparts3d.fieldml"
+    doc = fml.Document.from_meshio(mesh_tri, name=out_name)
+    out = OUT / f"{out_name}.fieldml"
     doc.write(out)
     size = out.stat().st_size
-    print(f"  wrote {out} ({pts_d.shape[0]} points, {tris_d.shape[0]} triangles, {size:,} bytes)")
-    if size > MAX_BP3D_BYTES:
+    n_comp = _count_components(pts_d, tris_d)
+    print(
+        f"  wrote {out} ({pts_d.shape[0]} points, {tris_d.shape[0]} "
+        f"triangles, {size:,} bytes, {n_comp} connected component(s)) — {label}"
+    )
+
+    if size > max_bytes:
         print(
-            f"  WARNING: file exceeds {MAX_BP3D_BYTES:,}-byte budget; "
+            f"  WARNING: file exceeds {max_bytes:,}-byte budget; "
             "retrying with a coarser decimation.",
             file=sys.stderr,
         )
-        pts_d, tris_d = _decimate_triangles(pts, tris, target=target_tris // 2)
+        pts_d, tris_d = _decimate_triangles(
+            pts, tris, target=max(target_tris // 2, 500), multi_component=multi_component
+        )
         mesh_tri = meshio.Mesh(points=pts_d, cells=[("triangle", tris_d)])
-        doc = fml.Document.from_meshio(mesh_tri, name="femur_bodyparts3d")
+        doc = fml.Document.from_meshio(mesh_tri, name=out_name)
         doc.write(out)
         size = out.stat().st_size
+        n_comp = _count_components(pts_d, tris_d)
         print(
             f"  rewrote {out} ({pts_d.shape[0]} points, {tris_d.shape[0]} "
-            f"triangles, {size:,} bytes)"
+            f"triangles, {size:,} bytes, {n_comp} connected component(s))"
         )
     return out
+
+
+def fetch_bp3d_single(
+    fj_id: str, out_name: str, label: str, *, target_tris: int = 2500
+) -> Path | None:
+    """Fetch a single-FJ BodyParts3D mesh, decimate, convert to FieldML.
+
+    Returns the output path on success, or ``None`` on failure. Never
+    raises - the caller treats failure as a skippable non-fatal event.
+    """
+    print(f"BodyParts3D {out_name}")
+    print("  source: https://dbarchive.biosciencedbc.jp/en/bodyparts3d/")
+    zip_blob = _load_bp3d_zip()
+    if zip_blob is None:
+        print("  SKIPPED: BodyParts3D archives unreachable", file=sys.stderr)
+        return None
+
+    try:
+        obj_bytes = _extract_obj_from_bp3d_zip(zip_blob, fj_id)
+    except Exception as exc:
+        print(f"  SKIPPED: archive extraction failed: {exc}", file=sys.stderr)
+        return None
+    if obj_bytes is None:
+        print(f"  SKIPPED: no {fj_id}.obj in archive", file=sys.stderr)
+        return None
+    print(f"  using {fj_id}.obj = {label} ({len(obj_bytes):,} bytes OBJ)")
+
+    parsed = _read_obj_bytes(obj_bytes)
+    if parsed is None:
+        print("  SKIPPED: no triangles in OBJ", file=sys.stderr)
+        return None
+    pts, tris = parsed
+
+    # Preserve the existing femur file byte-for-byte: it was built against
+    # the legacy MAX_BP3D_BYTES (200 KB) budget, and the reproducibility
+    # fingerprint is pinned to that output. New datasets use the looser
+    # MAX_BP3D_EXT_BYTES (300 KB) budget.
+    max_bytes = MAX_BP3D_BYTES if out_name == "femur_bodyparts3d" else MAX_BP3D_EXT_BYTES
+    return _write_bp3d_dataset(
+        pts, tris, out_name=out_name, target_tris=target_tris, max_bytes=max_bytes, label=label
+    )
+
+
+def fetch_bodyparts3d_femur() -> Path | None:
+    """Fetch the BodyParts3D femur (v1.1-compatible wrapper for backward use)."""
+    return fetch_bp3d_single(
+        BP3D_FEMUR_ELEMENT,
+        "femur_bodyparts3d",
+        BP3D_FEMUR_LABEL,
+        target_tris=2500,
+    )
+
+
+def fetch_bp3d_vertebra_l3() -> Path | None:
+    """Fetch the BodyParts3D lumbar-vertebra mesh (FJ3159)."""
+    return fetch_bp3d_single(
+        BP3D_VERTEBRA_L3_ELEMENT,
+        "vertebra_l3",
+        BP3D_VERTEBRA_L3_LABEL,
+        target_tris=2500,
+    )
+
+
+def fetch_bp3d_scapula() -> Path | None:
+    """Fetch the BodyParts3D left-scapula mesh (FJ3279)."""
+    return fetch_bp3d_single(
+        BP3D_SCAPULA_ELEMENT,
+        "scapula",
+        BP3D_SCAPULA_LABEL,
+        target_tris=3000,
+    )
+
+
+def fetch_bp3d_tibia_left() -> Path | None:
+    """Fetch the BodyParts3D left-tibia mesh (FJ3282)."""
+    return fetch_bp3d_single(
+        BP3D_TIBIA_LEFT_ELEMENT,
+        "tibia_left",
+        BP3D_TIBIA_LEFT_LABEL,
+        target_tris=2500,
+    )
+
+
+def fetch_bp3d_hip_bone_left() -> Path | None:
+    """Fetch the BodyParts3D left hip-bone mesh (FJ3152)."""
+    return fetch_bp3d_single(
+        BP3D_HIP_BONE_LEFT_ELEMENT,
+        "hip_bone_left",
+        BP3D_HIP_BONE_LEFT_LABEL,
+        target_tris=2500,
+    )
 
 
 def main() -> int:
     print("=== pyfieldml real-mesh fetcher ===\n")
     bunny = fetch_stanford_bunny()
     print()
-    bp3d = fetch_bodyparts3d_femur()
+    bp3d_femur = fetch_bodyparts3d_femur()
+    print()
+    bp3d_vert = fetch_bp3d_vertebra_l3()
+    print()
+    bp3d_scap = fetch_bp3d_scapula()
+    print()
+    bp3d_tib = fetch_bp3d_tibia_left()
+    print()
+    bp3d_hip = fetch_bp3d_hip_bone_left()
     print()
     print("Summary:")
     print(f"  bunny_stanford:     {'ok' if bunny else 'FAILED'}")
-    print(f"  femur_bodyparts3d:  {'ok' if bp3d else 'skipped/failed'}")
+    print(f"  femur_bodyparts3d:  {'ok' if bp3d_femur else 'skipped/failed'}")
+    print(f"  vertebra_l3:        {'ok' if bp3d_vert else 'skipped/failed'}")
+    print(f"  scapula:            {'ok' if bp3d_scap else 'skipped/failed'}")
+    print(f"  tibia_left:         {'ok' if bp3d_tib else 'skipped/failed'}")
+    print(f"  hip_bone_left:      {'ok' if bp3d_hip else 'skipped/failed'}")
     # Fatal only if bunny (public-domain anchor) failed: BP3D is best-effort.
     return 0 if bunny is not None else 1
 
