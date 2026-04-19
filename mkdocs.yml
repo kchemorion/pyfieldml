@@ -48,6 +48,8 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - FAQ: faq.md
+  - Cite: cite.md
   - Notebooks:
       - Quickstart: notebooks/01_quickstart.ipynb
       - Evaluator graph: notebooks/02_evaluator_graph.ipynb
