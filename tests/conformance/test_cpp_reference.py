@@ -1,7 +1,15 @@
 """Cross-validate pyfieldml against the C++ FieldML-API reference library.
 
-Skipped unless PYFIELDML_CPP_REF points to a `cpp_roundtrip` executable that
-takes (input.fieldml, output.fieldml) and exits 0 on success.
+The ``test_round_trip_matches_cpp_reference`` / ``test_parameter_array_...``
+tests below are gated by ``PYFIELDML_CPP_REF``: they run only when that env
+var points to a ``cpp_roundtrip`` executable that takes
+``(input.fieldml, output.fieldml)`` and exits 0 on success.
+
+A third test — ``test_python_writer_self_roundtrip_preserves_model`` — runs
+unconditionally and asserts that ``Document.write`` followed by
+``pyfieldml.read`` round-trips the semantic model of each fixture. This is a
+weaker gate than the C++ comparison but it catches writer regressions even
+when the C++ reference library isn't available locally.
 """
 
 from __future__ import annotations
@@ -23,6 +31,44 @@ CPP_REF = os.environ.get("PYFIELDML_CPP_REF")
 # Region@name preservation). The cpp_roundtrip tool + CI workflow are in place;
 # only the assertions are currently disabled. Tracked at #TODO.
 pytestmark = pytest.mark.skip(reason="Phase-2 follow-up: Python vs C++ writer XML-shape parity")
+
+
+@pytest.mark.parametrize(
+    "fixture",
+    [
+        "minimal.fieldml",
+        "two_types.fieldml",
+        "parameter_inline.fieldml",
+    ],
+)
+def test_python_writer_self_roundtrip_preserves_model(
+    fixtures_dir: Path, tmp_path: Path, fixture: str
+) -> None:
+    """Python writer -> reader round-trip must preserve the semantic model.
+
+    Unlike the C++-reference comparisons below, this test does not depend on
+    ``PYFIELDML_CPP_REF``: it only exercises the Python writer/reader pair,
+    which gives us a real "writer is working correctly" gate even when the
+    C++ reference library isn't available locally.
+    """
+    src = fixtures_dir / fixture
+    doc_before = fml.read(src)
+    out = tmp_path / f"rt_{fixture}"
+    doc_before.write(out)
+    doc_after = fml.read(out)
+
+    # Same type sets
+    assert set(doc_before.booleans) == set(doc_after.booleans)
+    assert set(doc_before.continuous) == set(doc_after.continuous)
+    assert set(doc_before.ensembles) == set(doc_after.ensembles)
+    assert set(doc_before.meshes) == set(doc_after.meshes)
+
+    # Same evaluator names and types
+    assert set(doc_before.evaluators) == set(doc_after.evaluators)
+    for name in doc_before.evaluators:
+        before_kind = type(doc_before.evaluators[name]).__name__
+        after_kind = type(doc_after.evaluators[name]).__name__
+        assert before_kind == after_kind, f"{name}: {before_kind} != {after_kind}"
 
 
 @pytest.mark.skipif(
