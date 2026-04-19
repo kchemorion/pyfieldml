@@ -200,19 +200,19 @@ Fig.~\ref{fig:graph} illustrates the \emph{evaluator graph} of one dataset, \tex
 
 \begin{figure}[!h]
 \centering
-\includegraphics[width=0.80\textwidth]{figures/fig3_evaluator_graph.png}
-\caption{Evaluator graph of the bundled \texttt{rectus\_femoris} dataset. Nodes are coloured by evaluator subtype (parameter / external / aggregate / reference / piecewise / argument / constant) following the FieldML 0.5 taxonomy. Edges are named dependencies: the \texttt{coordinates} parameter depends on its \texttt{coordinates.connectivity} ensemble, which in turn binds into the element topology via an \texttt{ExternalEvaluator} basis.}
+\includegraphics[width=0.98\textwidth]{figures/fig3_evaluator_graph.png}
+\caption{Evaluator-graph DOM and fiber-field workflow on the bundled \texttt{rectus\_femoris} dataset. (a) The typed evaluator DAG: nodes are coloured by subtype (parameter / external / aggregate / reference / piecewise / argument / constant) following the FieldML 0.5 taxonomy, and edges are named dependencies---the \texttt{coordinates} parameter depends on its \texttt{coordinates.connectivity} ensemble and on the basis \texttt{ExternalEvaluator}. (b--d) The same document rendered through the PyVista bridge: (b) bare topology, (c) per-node fiber-direction glyphs coloured by magnitude, (d) streamlines seeded inside the muscle belly and traced through the fiber field. Together they show both the structural (graph) and computational (evaluate-then-visualise) sides of a pyfieldml workflow.}
 \label{fig:graph}
 \end{figure}
 
 \subsection{Example 2: FEM solve via scikit-fem}
 
-A FieldML document can be handed directly to scikit-fem \cite{scikit_fem} for PDE assembly through the \texttt{pyfieldml.interop.scikit\_fem} bridge, which returns a \texttt{(Mesh, Basis)} pair. The Poisson problem $-\Delta u = 1$ on a unit cube, for instance, reduces to a standard scikit-fem boilerplate once the mesh has been obtained from FieldML (Fig.~\ref{fig:fem}). The pattern generalises to any FieldML mesh whose basis is supported by scikit-fem, including the triangular-surface BodyParts3D bones. Crucially, neither the user nor the solver is aware that the mesh began life as a FieldML 0.5 evaluator graph---the bridge is transparent.
+A FieldML document can be handed directly to scikit-fem \cite{scikit_fem} for PDE assembly through the \texttt{pyfieldml.interop.scikit\_fem} bridge, which returns a \texttt{(Mesh, Basis)} pair. The Poisson problem $-\Delta u = 1$ on a unit cube, for instance, reduces to a standard scikit-fem boilerplate once the mesh has been obtained from FieldML (Fig.~\ref{fig:fem}); the figure walks through the full pipeline from refined mesh to scalar solution, gradient magnitude and iso-contours in a single composite. The pattern generalises to any FieldML mesh whose basis is supported by scikit-fem, including the triangular-surface BodyParts3D bones. Crucially, neither the user nor the solver is aware that the mesh began life as a FieldML 0.5 evaluator graph---the bridge is transparent.
 
 \begin{figure}[!h]
 \centering
 \includegraphics[width=0.98\textwidth]{figures/fig5_fem_solution.png}
-\caption{FEM workflow starting from a FieldML mesh. Left: a refined tetrahedral mesh derived from the bundled \texttt{unit\_cube} via the \texttt{pyfieldml $\rightarrow$ scikit-fem} bridge. Right: Poisson solution $-\Delta u = 1$ with zero Dirichlet boundary, rendered on three orthogonal slices.}
+\caption{Four-panel FEM workflow on a FieldML mesh. (a) Refined tetrahedral mesh derived from the bundled \texttt{unit\_cube} via the \texttt{pyfieldml $\rightarrow$ scikit-fem} bridge (645 nodes, 2560 tets after three uniform refinements). (b) Poisson solution $-\Delta u = 1$ with zero Dirichlet boundary, rendered on three orthogonal slices through the volume. (c) Gradient magnitude $|\nabla u|$ on a half-clipped volume, showing the boundary-layer gradients. (d) Iso-contours of $u$ in the interior, confirming the bowl-shaped profile expected from the analytic solution.}
 \label{fig:fem}
 \end{figure}
 
@@ -222,17 +222,17 @@ The most important consumer of \texttt{pyfieldml} is the computational biomechan
 
 \begin{figure}[!h]
 \centering
-\includegraphics[width=0.75\textwidth]{figures/fig6_msk_assembly.png}
-\caption{Clinical musculoskeletal assembly rendered from four bundled BodyParts3D \cite{bodyparts3d} datasets (left hip, left femur, left tibia, lumbar vertebra L3). The scene is assembled in roughly ten lines of Python on top of \texttt{pyfieldml.datasets}. BodyParts3D data is \copyright{} The Database Center for Life Science (DBCLS), licensed under CC-BY-SA 2.1 JP.}
+\includegraphics[width=0.98\textwidth]{figures/fig6_msk_assembly.png}
+\caption{Multi-bone MSK assembly and spine-ready topology, rendered entirely from bundled datasets. (a) Clinical musculoskeletal assembly composed from four BodyParts3D \cite{bodyparts3d} segments (L3 vertebra, left hip bone, left femur, left tibia), roughly stacked along the cranio-caudal axis so the layout is anatomically coherent. (b,c) Close-up of the L3 vertebra in wireframe (b) and with highlighted triangle edges (c); the central foramen (the hole through which the spinal cord passes) is the non-trivial topology that makes this dataset the natural gateway for spine statistical shape modelling. The whole figure is built in roughly ten lines of Python on top of \texttt{pyfieldml.datasets}; BodyParts3D data is \copyright{} The Database Center for Life Science (DBCLS), licensed under CC-BY-SA 2.1 JP.}
 \label{fig:msk}
 \end{figure}
 
-Beyond assembly, the Hermite basis of the evaluation engine enables smooth-deformation studies. Fig.~\ref{fig:hermite} shows a two-node cubic-Hermite line element, the simplest setting in which the C1-continuous Hermite basis is visible, loaded as a tip-force cantilever. pyfieldml samples the deflection at 41 xi points; the resulting curve is C1-continuous by construction, matching the theoretical Euler-Bernoulli profile. The same Hermite machinery is what enables smooth heart-wall geometries in Physiome-Project cardiac models \cite{nash_hunter_2001}.
+Beyond assembly, the Hermite basis of the evaluation engine enables smooth-deformation studies. Fig.~\ref{fig:hermite} opens with the four cubic-Hermite basis functions on the reference interval (panel~a) and the partition-of-unity property of their value pair (panel~b), then shows a two-node cubic-Hermite line element loaded as a tip-force cantilever (panels~c,d)---the simplest setting in which the $C^1$-continuous Hermite basis is visible. \texttt{pyfieldml} samples the deflection via \texttt{Field.evaluate}; the resulting curve is $C^1$-continuous by construction and matches the theoretical Euler-Bernoulli profile. The same Hermite machinery is what enables smooth heart-wall geometries in Physiome-Project cardiac models \cite{nash_hunter_2001}.
 
 \begin{figure}[!h]
 \centering
 \includegraphics[width=0.98\textwidth]{figures/fig4_hermite_bending.png}
-\caption{Cantilever bending with the \texttt{pyfieldml} cubic-Hermite basis. Left: undeformed two-node Hermite line element. Right: tip-loaded deflection, sampled at 41 parametric ($\xi$) points via \texttt{Field.evaluate}. The profile is C1-continuous by basis construction.}
+\caption{Cubic-Hermite basis and cantilever bending with \texttt{pyfieldml}. (a) The four cubic-Hermite basis functions $H_0$--$H_3$ on the reference interval $\xi \in [0, 1]$; $H_0, H_2$ carry values and $H_1, H_3$ carry slopes at the two endpoints. (b) Partition-of-unity sanity check: the value basis sums to 1, the slope basis to 0. (c) A single Hermite element with non-zero derivative DOFs evaluates to a smoothly bending curve that no linear Lagrange element can represent. (d) Tip-loaded cantilever family: the same Hermite element under a sweep of imposed tip slopes, sampled at 50 parametric points via \texttt{Field.evaluate}. The profile is $C^1$-continuous by basis construction---the same machinery that underpins smooth heart-wall geometries in Physiome-Project cardiac models.}
 \label{fig:hermite}
 \end{figure}
 
