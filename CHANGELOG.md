@@ -6,6 +6,27 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-19
+
+### Added
+- `pyfieldml.eval` subpackage: evaluator-graph walker (`evaluate_evaluator`),
+  `EvaluationContext` with binding stack, `Field` user-facing wrapper.
+- `pyfieldml.eval.bases`: runtime basis-function plugin registry (`@basis`
+  decorator, `get_basis`, `list_bases`); built-in linear + quadratic Lagrange
+  on line / triangle / quad / tet / hex / wedge (12 bases total).
+- `Field.evaluate(element, xi)` — scalar and vectorized parametric evaluation
+  on Lagrange meshes.
+- `Field.sample(points)` — physical-point sampling backed by `scipy.spatial.cKDTree`
+  candidate selection + inverse-xi Newton root-finding per element; points
+  outside the mesh return NaN.
+- `Field.jacobian(element, xi)` — returns the ∂(field)/∂(xi) Jacobian.
+- `pyfieldml.builders.add_lagrange_mesh` — one-call builder that adds a
+  complete Lagrange mesh graph (types, coords, connectivity, basis external).
+- `pyfieldml bench <path> --field <name>` CLI subcommand for throughput
+  benchmarks. Entry point exposed via `[project.scripts]`.
+- Benchmark regression test: vectorized `Field.evaluate` is asserted to be
+  at least 50× a scalar Python loop.
+
 ## [0.1.0] - 2026-04-18
 
 ### Added
@@ -45,6 +66,7 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Community files: CONTRIBUTING, CODE_OF_CONDUCT, CHANGELOG, MAINTAINING,
   issue + PR templates.
 
-[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.2.0
 [0.1.0]: https://github.com/kchemorion/pyfieldml/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.0.1
