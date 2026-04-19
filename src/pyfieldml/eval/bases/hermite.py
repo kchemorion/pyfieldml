@@ -100,3 +100,55 @@ class BicubicHermiteQuad:
                 out[..., dof, 0] = dh_u[..., ui] * h_v[..., vi]
                 out[..., dof, 1] = h_u[..., ui] * dh_v[..., vi]
         return out
+
+
+@basis("library.basis.tricubic_hermite.hex", topology="hex", order=3)
+class TricubicHermiteHex:
+    """Tricubic Hermite basis on the unit cube, 64 DOFs/element."""
+
+    n_nodes = 64
+    topology = "hex"
+    order = 3
+
+    def shape_functions(self, xi: np.ndarray) -> np.ndarray:
+        """Return 64 shape functions at xi. Shape (..., 64)."""
+        xi = np.asarray(xi, dtype=np.float64)
+        h_u = _hermite_1d(xi[..., 0])
+        h_v = _hermite_1d(xi[..., 1])
+        h_w = _hermite_1d(xi[..., 2])
+        out = np.empty((*xi.shape[:-1], 64), dtype=np.float64)
+        corners = [(a, b, c) for c in (0, 1) for b in (0, 1) for a in (0, 1)]
+        for corner_idx, (a, b, c) in enumerate(corners):
+            for f_w in (0, 1):
+                for f_v in (0, 1):
+                    for f_u in (0, 1):
+                        ui = 2 * a + f_u
+                        vi = 2 * b + f_v
+                        wi = 2 * c + f_w
+                        dof = 8 * corner_idx + (f_u + 2 * f_v + 4 * f_w)
+                        out[..., dof] = h_u[..., ui] * h_v[..., vi] * h_w[..., wi]
+        return out
+
+    def shape_derivatives(self, xi: np.ndarray) -> np.ndarray:
+        """Return 64 x 3 derivatives at xi. Shape (..., 64, 3)."""
+        xi = np.asarray(xi, dtype=np.float64)
+        h_u = _hermite_1d(xi[..., 0])
+        h_v = _hermite_1d(xi[..., 1])
+        h_w = _hermite_1d(xi[..., 2])
+        dh_u = _hermite_1d_derivative(xi[..., 0])
+        dh_v = _hermite_1d_derivative(xi[..., 1])
+        dh_w = _hermite_1d_derivative(xi[..., 2])
+        out = np.empty((*xi.shape[:-1], 64, 3), dtype=np.float64)
+        corners = [(a, b, c) for c in (0, 1) for b in (0, 1) for a in (0, 1)]
+        for corner_idx, (a, b, c) in enumerate(corners):
+            for f_w in (0, 1):
+                for f_v in (0, 1):
+                    for f_u in (0, 1):
+                        ui = 2 * a + f_u
+                        vi = 2 * b + f_v
+                        wi = 2 * c + f_w
+                        dof = 8 * corner_idx + (f_u + 2 * f_v + 4 * f_w)
+                        out[..., dof, 0] = dh_u[..., ui] * h_v[..., vi] * h_w[..., wi]
+                        out[..., dof, 1] = h_u[..., ui] * dh_v[..., vi] * h_w[..., wi]
+                        out[..., dof, 2] = h_u[..., ui] * h_v[..., vi] * dh_w[..., wi]
+        return out

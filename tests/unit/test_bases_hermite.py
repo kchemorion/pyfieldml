@@ -60,3 +60,50 @@ def test_hermite_quad_derivative_dofs_zero_at_corners() -> None:
     derivative_dofs = [k for k in range(16) if k not in (0, 4, 8, 12)]
     for dof in derivative_dofs:
         np.testing.assert_allclose(phi[:, dof], 0.0, atol=1e-12)
+
+
+def test_hermite_hex_value_at_corners() -> None:
+    """Value@corner DOFs (index 0, 8, 16, 24, 32, 40, 48, 56) must be delta on the 8 corners."""
+    b = get_basis("library.basis.tricubic_hermite.hex")
+    corners = np.array(
+        [
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [1, 1, 0],
+            [0, 0, 1],
+            [1, 0, 1],
+            [0, 1, 1],
+            [1, 1, 1],
+        ],
+        dtype=np.float64,
+    )
+    phi = b.shape_functions(corners)
+    value_dofs = [0, 8, 16, 24, 32, 40, 48, 56]
+    for i in range(8):
+        for j, dof in enumerate(value_dofs):
+            expected = 1.0 if i == j else 0.0
+            assert abs(phi[i, dof] - expected) < 1e-12
+
+
+def test_hermite_hex_derivative_dofs_zero_at_corners() -> None:
+    """All 56 non-value DOFs give 0 at corners."""
+    b = get_basis("library.basis.tricubic_hermite.hex")
+    corners = np.array(
+        [
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [1, 1, 0],
+            [0, 0, 1],
+            [1, 0, 1],
+            [0, 1, 1],
+            [1, 1, 1],
+        ],
+        dtype=np.float64,
+    )
+    phi = b.shape_functions(corners)
+    value_dofs = {0, 8, 16, 24, 32, 40, 48, 56}
+    derivative_dofs = [k for k in range(64) if k not in value_dofs]
+    for dof in derivative_dofs:
+        np.testing.assert_allclose(phi[:, dof], 0.0, atol=1e-12)
