@@ -77,6 +77,20 @@ class Field:
             return out
         return result
 
+    def jacobian(self, *, element: int, xi: ArrayLike) -> np.ndarray:
+        """Return the d(field)/d(xi) Jacobian at the given element and xi.
+
+        For a D-valued field on an R-dim reference element, returns shape ``(D, R)``.
+        """
+        xi_arr = np.atleast_2d(np.asarray(xi, dtype=np.float64))
+        d_phi = self._basis.shape_derivatives(xi_arr)  # (1, N, R)
+        conn = self._conn[element - 1]
+        node_vals = self._nodes[conn - 1]  # (N, D)
+        # J[d, r] = sum over n of d_phi[0, n, r] * node_vals[n, d]
+        j = np.einsum("mnr,nd->mdr", d_phi, node_vals)
+        result: np.ndarray = j[0]
+        return result
+
 
 def resolve_field(region: Region, *, name: str) -> Field:
     """Best-effort graph resolution from a FieldML evaluator to a Field.
