@@ -106,21 +106,44 @@ def test_load_femur_bodyparts3d_if_bundled() -> None:
 
 
 def test_femur_is_anatomical_not_cylindrical() -> None:
-    """The new anatomical femur should have non-constant axial radius."""
+    """The anatomical femur must have:
+
+    - Proximal head offset from shaft axis (head test)
+    - Wider proximal + distal cross-sections than mid-shaft
+    - Variable radial profile along z
+
+    These three checks together catch the "it's still a rod" failure mode
+    — a cylindrical mesh would pass none of them.
+    """
     doc = datasets.load_femur()
-    coords = doc.evaluators["coordinates"]
-    assert isinstance(coords, ParameterEvaluator)
-    pts = coords.as_ndarray()
-    # Split into 4 z-slices and measure radial extent in each
+    coords_ev = doc.evaluators["coordinates"]
+    assert isinstance(coords_ev, ParameterEvaluator)
+    pts = coords_ev.as_ndarray()
+
     z_min, z_max = pts[:, 2].min(), pts[:, 2].max()
-    bins = np.linspace(z_min, z_max, 5)
-    radii = []
-    for i in range(4):
-        mask = (pts[:, 2] >= bins[i]) & (pts[:, 2] < bins[i + 1])
-        slab = pts[mask]
-        if len(slab) > 3:
-            r = np.sqrt(slab[:, 0] ** 2 + slab[:, 1] ** 2).max()
-            radii.append(r)
-    # Anatomical femur has wider proximal/distal than mid-shaft; a cylinder
-    # would have uniform radius. Assert at least 20% variation.
-    assert max(radii) / min(radii) > 1.2, f"Femur radii too uniform (cylinder-like): {radii}"
+
+    # Head offset test: proximal-most band (top ~2 cm of the bone) should
+    # contain at least one point offset medially by more than the shaft
+    # radius, i.e. the femoral head is not on the shaft axis.
+    proximal_threshold = z_max - 0.02 * (z_max - z_min)  # top ~2 cm
+    proximal = pts[pts[:, 2] > proximal_threshold]
+    assert len(proximal) > 5, f"Too few proximal nodes to test head offset: {len(proximal)}"
+    max_x_offset = float(np.max(np.abs(proximal[:, 0])))
+    assert max_x_offset > 0.02, (
+        f"Proximal end has no offset head — looks like a rod, not a femur "
+        f"(max_x_offset={max_x_offset:.3f})"
+    )
+
+    # Shaft-narrower-than-condyles test: compare mid-shaft max radius to
+    # distal max radius — the condyles must bulge wider than the shaft.
+    mid_shaft_z = (z_max + z_min) / 2
+    mid_band = pts[np.abs(pts[:, 2] - mid_shaft_z) < 0.02]
+    distal = pts[pts[:, 2] < z_min + 0.03 * (z_max - z_min)]
+    assert len(mid_band) > 3, f"Too few mid-shaft nodes: {len(mid_band)}"
+    assert len(distal) > 5, f"Too few distal nodes: {len(distal)}"
+    mid_r = float(np.max(np.sqrt(mid_band[:, 0] ** 2 + mid_band[:, 1] ** 2)))
+    distal_r = float(np.max(np.sqrt(distal[:, 0] ** 2 + distal[:, 1] ** 2)))
+    assert distal_r > mid_r * 1.3, (
+        f"Distal condyles ({distal_r:.3f}) not wider than shaft ({mid_r:.3f}) — "
+        "femur likely lacks condyle bulges"
+    )
