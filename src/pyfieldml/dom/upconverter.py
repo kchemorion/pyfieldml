@@ -84,12 +84,52 @@ def _rework_0_3_structures(tree: etree._ElementTree) -> None:
       * ``<EnsembleType isComponentEnsemble="true">`` -> drop the attribute;
         the 0.5 schema has no such marker and the ensemble is identified by
         usage.
-
-    Anything structurally load-bearing (e.g. ``ContinuousType @componentEnsemble``
-    -> ``<Components>`` child) is intentionally left alone for now. If such a
-    construct appears on an actual fixture, either extend this function or
-    raise a FieldMLParseError with a clear message.
+      * ``<ContinuousType componentEnsemble="X"/>`` -> add a ``<Components>``
+        child whose ``count`` matches the referenced ensemble's size, and
+        remove the attribute. This is the 0.3 spelling for vector-valued
+        continuous types; 0.5 uses the inline ``<Components>`` child.
     """
     for et in tree.iter("EnsembleType"):
         if "isComponentEnsemble" in et.attrib:
             et.attrib.pop("isComponentEnsemble")
+
+    # Map ensemble-name -> size for the enclosing Region, so we can resolve
+    # componentEnsemble references without re-parsing.
+    for region in tree.iter("Region"):
+        ensemble_sizes = _collect_ensemble_sizes(region)
+        for ct in region.iter("ContinuousType"):
+            ce = ct.attrib.pop("componentEnsemble", None)
+            if ce is None:
+                continue
+            if ct.find("Components") is not None:
+                continue  # already has explicit components; nothing to do
+            size = ensemble_sizes.get(ce)
+            if size is None:
+                # Unknown ensemble — leave the attribute gone and skip.
+                continue
+            components = etree.SubElement(ct, "Components")
+            components.set("name", f"{ce}.component")
+            components.set("count", str(size))
+
+
+def _collect_ensemble_sizes(region: etree._Element) -> dict[str, int]:
+    """Return ``{ensemble_name: size}`` for all EnsembleTypes directly under ``region``."""
+    sizes: dict[str, int] = {}
+    for et in region.iter("EnsembleType"):
+        name = et.get("name", "")
+        if not name:
+            continue
+        members = et.find("Members")
+        if members is None:
+            continue
+        mr = members.find("MemberRange")
+        if mr is not None:
+            lo = int(mr.get("min", "1"))
+            hi = int(mr.get("max", "0"))
+            sizes[name] = max(0, hi - lo + 1)
+            continue
+        # Fall back to counting <Member> children.
+        member_list = members.findall("Member")
+        if member_list:
+            sizes[name] = len(member_list)
+    return sizes
