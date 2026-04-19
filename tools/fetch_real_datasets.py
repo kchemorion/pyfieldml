@@ -161,6 +161,56 @@ BP3D_TIBIA_LEFT_LABEL = "left tibia (FMA24478)"
 BP3D_HIP_BONE_LEFT_ELEMENT = "FJ3152"  # FMA16586 hip bone
 BP3D_HIP_BONE_LEFT_LABEL = "hip bone (FMA16586, BodyParts3D FJ3152)"
 
+# FMA46565 "skull" is a compound of ~43 cranial / facial sub-parts in the
+# partof index. Hard-coded here so a fetch does not need a second network
+# round-trip to re-derive the list.
+BP3D_SKULL_ELEMENTS: tuple[str, ...] = (
+    "FJ1282",
+    "FJ1285",
+    "FJ1286",
+    "FJ1289",
+    "FJ1297",
+    "FJ1299",
+    "FJ1305",
+    "FJ1317",
+    "FJ1320",
+    "FJ1331",
+    "FJ1336",
+    "FJ1337",
+    "FJ1340",
+    "FJ1348",
+    "FJ1350",
+    "FJ1356",
+    "FJ1368",
+    "FJ1371",
+    "FJ1382",
+    "FJ2772",
+    "FJ3199",
+    "FJ3200",
+    "FJ3201",
+    "FJ3263",
+    "FJ3265",
+    "FJ3269",
+    "FJ3272",
+    "FJ3273",
+    "FJ3274",
+    "FJ3281",
+    "FJ3287",
+    "FJ3289",
+    "FJ3309",
+    "FJ3369",
+    "FJ3371",
+    "FJ3375",
+    "FJ3378",
+    "FJ3379",
+    "FJ3380",
+    "FJ3386",
+    "FJ3392",
+    "FJ3394",
+    "FJ3395",
+)
+BP3D_SKULL_LABEL = "skull (FMA46565, BodyParts3D compound of 43 sub-parts)"
+
 
 def _decimate_triangles(
     points: np.ndarray,
@@ -457,6 +507,74 @@ def fetch_bp3d_single(
     )
 
 
+def fetch_bp3d_compound(
+    fj_ids: list[str] | tuple[str, ...],
+    out_name: str,
+    label: str,
+    *,
+    target_tris: int = 3000,
+) -> Path | None:
+    """Fetch many BP3D sub-parts, union into one mesh, decimate, convert.
+
+    Used for the skull (FMA46565) which is an aggregate of ~43 cranial
+    and facial bones. Points are concatenated and triangle indices are
+    offset per-part so the merged mesh has a single vertex array.
+    """
+    print(f"BodyParts3D {out_name} (compound, {len(fj_ids)} parts)")
+    print("  source: https://dbarchive.biosciencedbc.jp/en/bodyparts3d/")
+    zip_blob = _load_bp3d_zip()
+    if zip_blob is None:
+        print("  SKIPPED: BodyParts3D archives unreachable", file=sys.stderr)
+        return None
+
+    all_pts: list[np.ndarray] = []
+    all_tris: list[np.ndarray] = []
+    offset = 0
+    missing: list[str] = []
+    for fj_id in fj_ids:
+        try:
+            obj_bytes = _extract_obj_from_bp3d_zip(zip_blob, fj_id)
+        except Exception as exc:
+            print(f"  WARN: extraction failed for {fj_id}: {exc}", file=sys.stderr)
+            missing.append(fj_id)
+            continue
+        if obj_bytes is None:
+            missing.append(fj_id)
+            continue
+        parsed = _read_obj_bytes(obj_bytes)
+        if parsed is None:
+            missing.append(fj_id)
+            continue
+        pts, tris = parsed
+        all_pts.append(pts)
+        all_tris.append(tris + offset)
+        offset += pts.shape[0]
+
+    if not all_pts:
+        print("  SKIPPED: no sub-parts extracted", file=sys.stderr)
+        return None
+    if missing:
+        tail = "..." if len(missing) > 5 else ""
+        print(f"  note: {len(missing)} sub-part(s) missing: {missing[:5]}{tail}")
+
+    pts_all = np.concatenate(all_pts, axis=0)
+    tris_all = np.concatenate(all_tris, axis=0).astype(np.int64)
+    print(
+        f"  merged: {pts_all.shape[0]} points, {tris_all.shape[0]} triangles "
+        f"from {len(all_pts)} parts"
+    )
+
+    return _write_bp3d_dataset(
+        pts_all,
+        tris_all,
+        out_name=out_name,
+        target_tris=target_tris,
+        max_bytes=MAX_BP3D_EXT_BYTES,
+        label=label,
+        multi_component=True,
+    )
+
+
 def fetch_bodyparts3d_femur() -> Path | None:
     """Fetch the BodyParts3D femur (v1.1-compatible wrapper for backward use)."""
     return fetch_bp3d_single(
@@ -507,6 +625,16 @@ def fetch_bp3d_hip_bone_left() -> Path | None:
     )
 
 
+def fetch_bp3d_skull() -> Path | None:
+    """Fetch + merge the BodyParts3D skull compound (FMA46565, 43 sub-parts)."""
+    return fetch_bp3d_compound(
+        BP3D_SKULL_ELEMENTS,
+        "skull",
+        BP3D_SKULL_LABEL,
+        target_tris=3000,
+    )
+
+
 def main() -> int:
     print("=== pyfieldml real-mesh fetcher ===\n")
     bunny = fetch_stanford_bunny()
@@ -521,6 +649,8 @@ def main() -> int:
     print()
     bp3d_hip = fetch_bp3d_hip_bone_left()
     print()
+    bp3d_skull = fetch_bp3d_skull()
+    print()
     print("Summary:")
     print(f"  bunny_stanford:     {'ok' if bunny else 'FAILED'}")
     print(f"  femur_bodyparts3d:  {'ok' if bp3d_femur else 'skipped/failed'}")
@@ -528,6 +658,7 @@ def main() -> int:
     print(f"  scapula:            {'ok' if bp3d_scap else 'skipped/failed'}")
     print(f"  tibia_left:         {'ok' if bp3d_tib else 'skipped/failed'}")
     print(f"  hip_bone_left:      {'ok' if bp3d_hip else 'skipped/failed'}")
+    print(f"  skull:              {'ok' if bp3d_skull else 'skipped/failed'}")
     # Fatal only if bunny (public-domain anchor) failed: BP3D is best-effort.
     return 0 if bunny is not None else 1
 
