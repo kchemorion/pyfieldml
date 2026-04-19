@@ -35,3 +35,18 @@ def test_missing_import_raises(tmp_path: Path) -> None:
     resolver = ImportResolver(base_dir=tmp_path)
     with pytest.raises(UnresolvedImportError):
         resolver.resolve("does_not_exist.fieldml", region_name="x")
+
+
+def test_loader_resolves_stdlib_imports_into_local_region(fixtures_dir: Path) -> None:
+    """Smoke test: a doc that imports real.3d from the stdlib should surface it.
+
+    Regression for the Phase-1 loader which walked past <Import> elements and
+    produced regions with dangling ReferenceEvaluator.source placeholders.
+    """
+    import pyfieldml as fml
+
+    doc = fml.read(fixtures_dir / "imports_stdlib_real.fieldml")
+    assert doc.region.name == "consumer"
+    # ``real.3d`` was brought in under the localName alias.
+    assert "real.3d" in doc.region.continuous
+    assert doc.region.continuous["real.3d"].component_count == 3

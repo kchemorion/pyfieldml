@@ -55,6 +55,11 @@ def load_region_from_file(path: Path, *, region_name: str) -> Region:
 def _load_region(elem: etree._Element, *, base_dir: Path) -> Region:
     region = Region(name=elem.get("name", ""))
 
+    # Zeroth pass: <Import> elements bring named types/evaluators from
+    # foreign regions into this one under (optionally renamed) local names.
+    for imp_elem in elem.findall("Import"):
+        _load_import(imp_elem, region, base_dir=base_dir)
+
     # First pass: types (referenced by evaluators).
     for child in elem:
         if child.tag == "BooleanType":
@@ -87,6 +92,75 @@ def _load_region(elem: etree._Element, *, base_dir: Path) -> Region:
 
 
 # --- helpers ---
+
+
+_XLINK_HREF = "{http://www.w3.org/1999/xlink}href"
+
+
+def _load_import(imp_elem: etree._Element, region: Region, *, base_dir: Path) -> None:
+    """Resolve an ``<Import>`` element and copy named items into ``region``.
+
+    For each ``<ImportType>`` / ``<ImportEvaluator>`` child, look up the named
+    item in the foreign region and re-register it in ``region`` under the
+    local alias. Silently skip items that cannot be found — a stricter pass
+    (validation) can diagnose later.
+    """
+    from pyfieldml.model.imports import ImportResolver
+
+    href = imp_elem.get(_XLINK_HREF) or imp_elem.get("href", "")
+    region_name = imp_elem.get("region", "")
+    if not href or not region_name:
+        return
+
+    foreign = ImportResolver(base_dir=base_dir).resolve(href, region_name=region_name)
+
+    for t_elem in imp_elem.findall("ImportType"):
+        local_name = t_elem.get("name", "")
+        foreign_name = t_elem.get("localName", local_name)
+        if not local_name or not foreign_name:
+            continue
+        if local_name in region._objects:
+            continue
+        imported = _lookup_type(foreign, foreign_name)
+        if imported is not None:
+            region.add_type(_rename_type(imported, local_name))
+
+    for e_elem in imp_elem.findall("ImportEvaluator"):
+        local_name = e_elem.get("name", "")
+        foreign_name = e_elem.get("localName", local_name)
+        if not local_name or not foreign_name:
+            continue
+        if local_name in region._objects:
+            continue
+        imported_ev = foreign.evaluators.get(foreign_name)
+        if imported_ev is not None:
+            # Minimal re-registration: keep the same value_type, rename.
+            from dataclasses import replace
+
+            try:
+                renamed = replace(imported_ev, name=local_name)
+            except TypeError:
+                continue
+            region.add_evaluator(renamed)
+
+
+def _lookup_type(region: Region, name: str) -> Any:
+    if name in region.booleans:
+        return region.booleans[name]
+    if name in region.ensembles:
+        return region.ensembles[name]
+    if name in region.continuous:
+        return region.continuous[name]
+    if name in region.meshes:
+        return region.meshes[name]
+    return None
+
+
+def _rename_type(t: Any, new_name: str) -> Any:
+    """Return a copy of ``t`` with ``name`` replaced by ``new_name``."""
+    from dataclasses import replace
+
+    return replace(t, name=new_name)
 
 
 def _load_ensemble(elem: etree._Element) -> EnsembleType:

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Fieldml version="0.5.0">
+  <Region name="consumer">
+    <Import xlink:href="http://www.fieldml.org/resources/xml/0.5/FieldML_Library_0.5.xml"
+            region="library"
+            xmlns:xlink="http://www.w3.org/1999/xlink">
+      <ImportType name="real.3d" localName="real.3d"/>
+    </Import>
+  </Region>
+</Fieldml>
