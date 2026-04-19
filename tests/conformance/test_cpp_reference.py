@@ -26,11 +26,21 @@ import pyfieldml as fml
 
 CPP_REF = os.environ.get("PYFIELDML_CPP_REF")
 
-# TODO(phase-2): re-enable once the Python writer emits XML shape-compatible
-# with the C++ reference (root-element xmlns:xsi + schemaLocation, indentation,
-# Region@name preservation). The cpp_roundtrip tool + CI workflow are in place;
-# only the assertions are currently disabled. Tracked at #TODO.
-pytestmark = pytest.mark.skip(reason="Phase-2 follow-up: Python vs C++ writer XML-shape parity")
+
+def _canonicalize_for_cpp_compare(xml_bytes: bytes) -> bytes:
+    """C14N canonicalize, normalising a known C++-vs-Python writer divergence.
+
+    The C++ FieldML-API reference writer drops ``@name`` on ``<Region>`` on
+    re-serialise; pyfieldml preserves it. @name on Region is purely a
+    namespace label and carries no semantic effect within a single-region
+    document, so we strip it from both sides before canonicalising to treat
+    ``<Region>`` and ``<Region name="r">`` as equivalent for the comparison.
+    """
+    tree = etree.fromstring(xml_bytes)
+    for region in tree.iter("Region"):
+        if "name" in region.attrib:
+            del region.attrib["name"]
+    return etree.tostring(etree.ElementTree(tree), method="c14n", exclusive=True)
 
 
 @pytest.mark.parametrize(
@@ -94,18 +104,11 @@ def test_round_trip_matches_cpp_reference(fixtures_dir: Path, tmp_path: Path, fi
     cpp_out = tmp_path / f"cpp_{fixture}"
     subprocess.run([CPP_REF, str(src), str(cpp_out)], check=True)
 
-    # Semantic equivalence: C14N canonicalization makes the comparison
-    # whitespace/ordering-insensitive where possible.
-    py_canonical = etree.tostring(
-        etree.parse(py_out),
-        method="c14n",
-        exclusive=True,
-    )
-    cpp_canonical = etree.tostring(
-        etree.parse(cpp_out),
-        method="c14n",
-        exclusive=True,
-    )
+    # Semantic equivalence: C14N canonicalisation + normalisation of the
+    # known C++-vs-Python writer divergence (Region@name). See
+    # _canonicalize_for_cpp_compare for the rationale.
+    py_canonical = _canonicalize_for_cpp_compare(py_out.read_bytes())
+    cpp_canonical = _canonicalize_for_cpp_compare(cpp_out.read_bytes())
     assert py_canonical == cpp_canonical, (
         f"Canonicalized XML divergence for {fixture}:\n"
         f"python:\n{py_canonical!r}\ncpp:\n{cpp_canonical!r}"
