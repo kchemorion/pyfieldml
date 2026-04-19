@@ -106,3 +106,35 @@ def test_meshio_register_plugin(tmp_path: Path) -> None:
 
     m = _meshio.read(fieldml_path)
     assert m.points.shape == (8, 3)
+
+
+def test_meshio_auto_registers_without_explicit_register_call(tmp_path: Path) -> None:
+    """``meshio.read('x.fieldml')`` must work with no explicit ``_register()`` call.
+
+    Deregisters the format first, then re-triggers the module-level
+    auto-registration via ``importlib.reload`` — this mirrors the real-world
+    flow for users who only do ``import pyfieldml`` (which transitively imports
+    ``pyfieldml.interop.meshio``) and then reach for ``meshio.read(...)`` in a
+    downstream notebook.
+    """
+    import importlib
+
+    import meshio as _meshio
+    from meshio._helpers import reader_map
+
+    import pyfieldml.interop.meshio as _interop_meshio
+
+    # Scrub any prior registration so we genuinely re-exercise the auto-register path.
+    _meshio.deregister_format("fieldml")
+    assert "fieldml" not in reader_map
+
+    # Re-running the pyfieldml.interop.meshio module must re-install the plugin.
+    importlib.reload(_interop_meshio)
+    assert "fieldml" in reader_map
+
+    doc = _unit_cube_doc()
+    fieldml_path = tmp_path / "cube.fieldml"
+    doc.write(fieldml_path)
+
+    m = _meshio.read(fieldml_path)
+    assert m.points.shape == (8, 3)

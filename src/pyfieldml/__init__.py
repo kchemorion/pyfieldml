@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
 from pyfieldml._version import __version__
@@ -44,3 +45,11 @@ __all__ = [
     "read",
     "validate",
 ]
+
+
+# Auto-register with meshio (if installed) so that ``meshio.read("x.fieldml")``
+# works out of the box. meshio does not expose an entry-point hook for format
+# registration, so the cleanest place to register is on ``import pyfieldml``.
+# Silent no-op when meshio is not installed — the [meshio] extra is optional.
+with contextlib.suppress(ImportError):
+    import pyfieldml.interop.meshio as _interop_meshio  # noqa: F401
