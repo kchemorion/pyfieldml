@@ -20,9 +20,16 @@ class Field:
     Phase 2: supports Lagrange-only meshes where the region contains:
       - A ParameterEvaluator named ``coord_name`` with node coordinates.
       - A ParameterEvaluator named ``coord_name + ".connectivity"`` holding
-        1-indexed element→node connectivity.
+        1-indexed element->node connectivity.
       - An ExternalEvaluator whose name begins with ``library.basis.`` naming
         the Lagrange basis (produced by ``add_lagrange_mesh``).
+
+    Phase 3: also supports cubic-Hermite line meshes where the region additionally
+    contains:
+      - ``coord_name + ".derivatives"`` - per-node derivative DOFs (same shape as
+        nodes).
+      - ``coord_name + ".scales"`` - per-element per-end derivative scale factors,
+        shape ``(n_elems, 2)``.
     """
 
     def __init__(
@@ -34,6 +41,8 @@ class Field:
         node_coords: np.ndarray,
         connectivity: np.ndarray,
         basis: Basis,
+        node_derivatives: np.ndarray | None = None,
+        scale_factors: np.ndarray | None = None,
     ) -> None:
         self._evaluator = evaluator
         self._region = region
@@ -41,6 +50,12 @@ class Field:
         self._nodes = np.asarray(node_coords, dtype=np.float64)
         self._conn = np.asarray(connectivity, dtype=np.int64)  # 1-indexed
         self._basis = basis
+        self._node_derivatives = (
+            None if node_derivatives is None else np.asarray(node_derivatives, dtype=np.float64)
+        )
+        self._scale_factors = (
+            None if scale_factors is None else np.asarray(scale_factors, dtype=np.float64)
+        )
 
     @property
     def name(self) -> str:
@@ -53,6 +68,40 @@ class Field:
     @property
     def shape(self) -> tuple[int, ...]:
         return self._nodes.shape
+
+    def _is_hermite_line(self) -> bool:
+        return (
+            getattr(self._basis, "topology", None) == "line"
+            and getattr(self._basis, "order", None) == 3
+            and self._node_derivatives is not None
+        )
+
+    def _assemble_hermite_line_dofs(self, element_arr: np.ndarray) -> np.ndarray:
+        """Build per-point (M, 4, D) DOF block with scales applied.
+
+        DOF order within each element: [v@a, d@a, v@b, d@b]. Scales apply to
+        derivative slots only: slot 1 gets ``scales[e, 0]``; slot 3 gets
+        ``scales[e, 1]``. Value slots are multiplied by 1.0.
+        """
+        assert self._node_derivatives is not None
+        conn = self._conn[element_arr - 1]  # (M, 2), 1-indexed node IDs
+        n_a = conn[:, 0] - 1
+        n_b = conn[:, 1] - 1
+        v_a = self._nodes[n_a]  # (M, D)
+        v_b = self._nodes[n_b]
+        d_a = self._node_derivatives[n_a]
+        d_b = self._node_derivatives[n_b]
+
+        if self._scale_factors is not None:
+            s = self._scale_factors[element_arr - 1]  # (M, 2)
+            s_a = s[:, 0:1]
+            s_b = s[:, 1:2]
+        else:
+            s_a = np.ones((element_arr.shape[0], 1), dtype=np.float64)
+            s_b = s_a
+
+        dofs = np.stack([v_a, d_a * s_a, v_b, d_b * s_b], axis=1)  # (M, 4, D)
+        return dofs
 
     def evaluate(
         self,
@@ -67,10 +116,15 @@ class Field:
             xi_arr = np.broadcast_to(xi_arr, (element_arr.shape[0], xi_arr.shape[1])).copy()
 
         phi = self._basis.shape_functions(xi_arr)  # (M, N)
-        # Elements are 1-indexed; node IDs inside conn are 1-indexed too.
-        conn = self._conn[element_arr - 1]
-        node_vals = self._nodes[conn - 1]  # (M, N, D)
-        result: np.ndarray = np.einsum("mn,mnd->md", phi, node_vals)
+
+        if self._is_hermite_line():
+            dofs = self._assemble_hermite_line_dofs(element_arr)  # (M, 4, D)
+            result: np.ndarray = np.einsum("mn,mnd->md", phi, dofs)
+        else:
+            # Elements are 1-indexed; node IDs inside conn are 1-indexed too.
+            conn = self._conn[element_arr - 1]
+            node_vals = self._nodes[conn - 1]  # (M, N, D)
+            result = np.einsum("mn,mnd->md", phi, node_vals)
 
         if result.shape[0] == 1:
             out: np.ndarray = result[0]
@@ -83,12 +137,20 @@ class Field:
         For a D-valued field on an R-dim reference element, returns shape ``(D, R)``.
         """
         xi_arr = np.atleast_2d(np.asarray(xi, dtype=np.float64))
-        d_phi = self._basis.shape_derivatives(xi_arr)  # (1, N, R)
-        conn = self._conn[element - 1]
+        d_phi = self._basis.shape_derivatives(xi_arr)  # (M, N, R)
+        element_arr = np.atleast_1d(np.asarray(element, dtype=np.int64))
+
+        if self._is_hermite_line():
+            dofs = self._assemble_hermite_line_dofs(element_arr)  # (1, 4, D)
+            # J[d, r] = sum over n of d_phi[0, n, r] * dofs[0, n, d]
+            j = np.einsum("mnr,mnd->mdr", d_phi, dofs)
+            result: np.ndarray = j[0]
+            return result
+
+        conn = self._conn[element_arr[0] - 1]
         node_vals = self._nodes[conn - 1]  # (N, D)
-        # J[d, r] = sum over n of d_phi[0, n, r] * node_vals[n, d]
         j = np.einsum("mnr,nd->mdr", d_phi, node_vals)
-        result: np.ndarray = j[0]
+        result = j[0]
         return result
 
     def sample(self, points: ArrayLike) -> np.ndarray:
@@ -113,7 +175,8 @@ def resolve_field(region: Region, *, name: str) -> Field:
     """Best-effort graph resolution from a FieldML evaluator to a Field.
 
     Phase-2 simplification documented on ``Field``. Users building graphs
-    manually must follow the convention produced by ``add_lagrange_mesh``.
+    manually must follow the convention produced by ``add_lagrange_mesh``
+    or ``add_hermite_mesh``.
     """
     ev = region.evaluators.get(name)
     if ev is None:
@@ -137,6 +200,12 @@ def resolve_field(region: Region, *, name: str) -> Field:
         raise EvaluationError(f"No library.basis.* evaluator found in region {region.name!r}")
     basis = get_basis(basis_name)
 
+    # Optional Hermite-mesh parameters.
+    derivs_ev = region.evaluators.get(f"{name}.derivatives")
+    scales_ev = region.evaluators.get(f"{name}.scales")
+    node_derivatives = derivs_ev.as_ndarray() if isinstance(derivs_ev, ParameterEvaluator) else None
+    scale_factors = scales_ev.as_ndarray() if isinstance(scales_ev, ParameterEvaluator) else None
+
     return Field(
         evaluator=ev,
         region=region,
@@ -144,4 +213,6 @@ def resolve_field(region: Region, *, name: str) -> Field:
         node_coords=ev.as_ndarray(),
         connectivity=conn_ev.as_ndarray(),
         basis=basis,
+        node_derivatives=node_derivatives,
+        scale_factors=scale_factors,
     )
