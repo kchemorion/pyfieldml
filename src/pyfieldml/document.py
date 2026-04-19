@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from lxml import etree
 
@@ -135,3 +135,13 @@ class Document:
             ) from exc
         doc: Document = from_meshio(mesh, name=name)
         return doc
+
+    def plot(self, **kwargs: Any) -> Any:
+        """Render this Document via PyVista. Requires pyfieldml[viz]."""
+        try:
+            from pyfieldml.interop.pyvista import plot_doc
+        except ImportError as exc:
+            raise ImportError(
+                "doc.plot() requires the [viz] extra: pip install pyfieldml[viz]"
+            ) from exc
+        return plot_doc(self, **kwargs)

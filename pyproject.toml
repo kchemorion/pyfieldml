@@ -62,6 +62,7 @@ dev = [
     "mkdocstrings[python]>=0.26",
     "mkdocs-jupyter>=0.25",
     "jupyter>=1",
+    "pyvista>=0.43",
 ]
 
 [project.scripts]
@@ -109,7 +110,7 @@ files = ["src/pyfieldml", "tests"]
 plugins = []
 
 [[tool.mypy.overrides]]
-module = ["lxml.*", "h5py.*", "scipy.*", "meshio.*"]
+module = ["lxml.*", "h5py.*", "scipy.*", "meshio.*", "pyvista.*", "vtk.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -169,6 +170,25 @@ class Field:
         if inside.any():
             out[inside] = self.evaluate(element=elems[inside], xi=xis[inside])
         return out
+
+    def as_ndarray(self) -> np.ndarray:
+        """Return the underlying node-value DOFs as an ndarray."""
+        return self._nodes
+
+    def plot(self, doc: Any = None, **kwargs: Any) -> Any:
+        """Render this Field via PyVista. Requires a Document + pyfieldml[viz]."""
+        if doc is None:
+            raise ValueError(
+                "Field.plot(doc=...) requires the parent Document; Phase-4 can't "
+                "resolve the grid without it."
+            )
+        try:
+            from pyfieldml.interop.pyvista import plot_field
+        except ImportError as exc:
+            raise ImportError(
+                "field.plot() requires the [viz] extra: pip install pyfieldml[viz]"
+            ) from exc
+        return plot_field(self, doc, **kwargs)
 
 
 def resolve_field(region: Region, *, name: str) -> Field:
