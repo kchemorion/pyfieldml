@@ -60,3 +60,43 @@ class CubicHermiteLine:
         xi = np.asarray(xi, dtype=np.float64)
         d = _hermite_1d_derivative(xi[..., 0])  # (..., 4)
         return d[..., :, None]  # (..., 4, 1)
+
+
+@basis("library.basis.bicubic_hermite.quad", topology="quad", order=3)
+class BicubicHermiteQuad:
+    """Bicubic Hermite basis on the unit quad, 16 DOFs/element."""
+
+    n_nodes = 16
+    topology = "quad"
+    order = 3
+
+    def shape_functions(self, xi: np.ndarray) -> np.ndarray:
+        """Return 16 shape functions at xi. Shape (..., 16)."""
+        xi = np.asarray(xi, dtype=np.float64)
+        h_u = _hermite_1d(xi[..., 0])
+        h_v = _hermite_1d(xi[..., 1])
+        out = np.empty((*xi.shape[:-1], 16), dtype=np.float64)
+        for corner_idx, (a, b) in enumerate([(0, 0), (1, 0), (0, 1), (1, 1)]):
+            for f_u, f_v in [(0, 0), (1, 0), (0, 1), (1, 1)]:
+                ui = 2 * a + f_u
+                vi = 2 * b + f_v
+                dof = 4 * corner_idx + (f_u + 2 * f_v)
+                out[..., dof] = h_u[..., ui] * h_v[..., vi]
+        return out
+
+    def shape_derivatives(self, xi: np.ndarray) -> np.ndarray:
+        """Return 16 x 2 derivatives at xi. Shape (..., 16, 2)."""
+        xi = np.asarray(xi, dtype=np.float64)
+        h_u = _hermite_1d(xi[..., 0])
+        h_v = _hermite_1d(xi[..., 1])
+        dh_u = _hermite_1d_derivative(xi[..., 0])
+        dh_v = _hermite_1d_derivative(xi[..., 1])
+        out = np.empty((*xi.shape[:-1], 16, 2), dtype=np.float64)
+        for corner_idx, (a, b) in enumerate([(0, 0), (1, 0), (0, 1), (1, 1)]):
+            for f_u, f_v in [(0, 0), (1, 0), (0, 1), (1, 1)]:
+                ui = 2 * a + f_u
+                vi = 2 * b + f_v
+                dof = 4 * corner_idx + (f_u + 2 * f_v)
+                out[..., dof, 0] = dh_u[..., ui] * h_v[..., vi]
+                out[..., dof, 1] = h_u[..., ui] * dh_v[..., vi]
+        return out

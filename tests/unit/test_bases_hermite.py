@@ -36,3 +36,27 @@ def test_hermite_line_reproduces_cubic() -> None:
     reconstructed = phi @ dofs
     expected = 2 * xi_test[:, 0] ** 3 + 3 * xi_test[:, 0] ** 2 - xi_test[:, 0] + 5
     np.testing.assert_allclose(reconstructed, expected, atol=1e-12)
+
+
+def test_hermite_quad_value_at_corners() -> None:
+    """Value@corner DOFs (index 0, 4, 8, 12) must be delta on corners (0,0),(1,0),(0,1),(1,1)."""
+    b = get_basis("library.basis.bicubic_hermite.quad")
+    corners = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+    phi = b.shape_functions(corners)
+    value_dofs = [0, 4, 8, 12]
+    for i, _corner in enumerate(corners):
+        for j, dof in enumerate(value_dofs):
+            expected = 1.0 if i == j else 0.0
+            assert (
+                abs(phi[i, dof] - expected) < 1e-12
+            ), f"phi[corner={i}, value-DOF-of-corner={j}] = {phi[i, dof]}, expected {expected}"
+
+
+def test_hermite_quad_derivative_dofs_zero_at_corners() -> None:
+    """All derivative DOFs give 0 at all corners (only value DOFs matter for position)."""
+    b = get_basis("library.basis.bicubic_hermite.quad")
+    corners = np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
+    phi = b.shape_functions(corners)
+    derivative_dofs = [k for k in range(16) if k not in (0, 4, 8, 12)]
+    for dof in derivative_dofs:
+        np.testing.assert_allclose(phi[:, dof], 0.0, atol=1e-12)
