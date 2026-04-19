@@ -11,6 +11,11 @@ Public API:
     datasets.load_rectus_femoris()       -> synthetic spindle muscle
     datasets.load_bunny_stanford()       -> Stanford Bunny (public domain)
     datasets.load_femur_bodyparts3d()    -> BodyParts3D femur (CC-BY-SA 2.1 JP)
+    datasets.load_vertebra_l3()          -> BodyParts3D lumbar vertebra
+    datasets.load_scapula()              -> BodyParts3D left scapula
+    datasets.load_tibia_left()           -> BodyParts3D left tibia
+    datasets.load_hip_bone_left()        -> BodyParts3D hip bone
+    datasets.load_skull()                -> BodyParts3D compound skull
 """
 
 from __future__ import annotations
@@ -83,6 +88,37 @@ def load_femur_bodyparts3d() -> Document:
     return load("femur_bodyparts3d")
 
 
+def load_vertebra_l3() -> Document:
+    """Return the bundled BodyParts3D lumbar-vertebra Document (CC-BY-SA 2.1 JP)."""
+    return load("vertebra_l3")
+
+
+def load_scapula() -> Document:
+    """Return the bundled BodyParts3D left-scapula Document (CC-BY-SA 2.1 JP)."""
+    return load("scapula")
+
+
+def load_tibia_left() -> Document:
+    """Return the bundled BodyParts3D left-tibia Document (CC-BY-SA 2.1 JP)."""
+    return load("tibia_left")
+
+
+def load_hip_bone_left() -> Document:
+    """Return the bundled BodyParts3D left hip-bone Document (CC-BY-SA 2.1 JP)."""
+    return load("hip_bone_left")
+
+
+def load_skull() -> Document:
+    """Return the bundled BodyParts3D compound-skull Document (CC-BY-SA 2.1 JP).
+
+    Assembled from 43 cranial and facial sub-part meshes (FMA46565) unioned
+    into a single vertex array, then decimated. The union is non-manifold;
+    callers that need a watertight mesh should use one of the single-bone
+    loaders (``load_femur_bodyparts3d``, ``load_tibia_left``, etc.) instead.
+    """
+    return load("skull")
+
+
 __all__ = [
     "cache_dir",
     "dataset_dir",
@@ -93,6 +129,11 @@ __all__ = [
     "load_bunny_stanford",
     "load_femur",
     "load_femur_bodyparts3d",
+    "load_hip_bone_left",
     "load_rectus_femoris",
+    "load_scapula",
+    "load_skull",
+    "load_tibia_left",
     "load_unit_cube",
+    "load_vertebra_l3",
 ]

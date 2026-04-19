@@ -91,5 +91,70 @@ REGISTRY: dict[str, DatasetInfo] = {
         origin="https://lifesciencedb.jp/bp3d/",
         bundled=True,
     ),
+    "vertebra_l3": DatasetInfo(
+        name="vertebra_l3",
+        files={"vertebra_l3.fieldml": ""},
+        license="CC-BY-SA-2.1-JP",
+        citation=(
+            "BodyParts3D lumbar vertebra (element FJ3159), "
+            "(c) The Database Center for Life Science (DBCLS), "
+            "licensed under CC-BY-SA 2.1 JP. "
+            "https://lifesciencedb.jp/bp3d/"
+        ),
+        origin="https://lifesciencedb.jp/bp3d/",
+        bundled=True,
+    ),
+    "scapula": DatasetInfo(
+        name="scapula",
+        files={"scapula.fieldml": ""},
+        license="CC-BY-SA-2.1-JP",
+        citation=(
+            "BodyParts3D left scapula (element FJ3279, FMA13396), "
+            "(c) The Database Center for Life Science (DBCLS), "
+            "licensed under CC-BY-SA 2.1 JP. "
+            "https://lifesciencedb.jp/bp3d/"
+        ),
+        origin="https://lifesciencedb.jp/bp3d/",
+        bundled=True,
+    ),
+    "tibia_left": DatasetInfo(
+        name="tibia_left",
+        files={"tibia_left.fieldml": ""},
+        license="CC-BY-SA-2.1-JP",
+        citation=(
+            "BodyParts3D left tibia (element FJ3282, FMA24478), "
+            "(c) The Database Center for Life Science (DBCLS), "
+            "licensed under CC-BY-SA 2.1 JP. "
+            "https://lifesciencedb.jp/bp3d/"
+        ),
+        origin="https://lifesciencedb.jp/bp3d/",
+        bundled=True,
+    ),
+    "hip_bone_left": DatasetInfo(
+        name="hip_bone_left",
+        files={"hip_bone_left.fieldml": ""},
+        license="CC-BY-SA-2.1-JP",
+        citation=(
+            "BodyParts3D hip bone (element FJ3152, FMA16586), "
+            "(c) The Database Center for Life Science (DBCLS), "
+            "licensed under CC-BY-SA 2.1 JP. "
+            "https://lifesciencedb.jp/bp3d/"
+        ),
+        origin="https://lifesciencedb.jp/bp3d/",
+        bundled=True,
+    ),
+    "skull": DatasetInfo(
+        name="skull",
+        files={"skull.fieldml": ""},
+        license="CC-BY-SA-2.1-JP",
+        citation=(
+            "BodyParts3D skull (FMA46565, compound of 43 cranial and facial "
+            "sub-part elements), (c) The Database Center for Life Science "
+            "(DBCLS), licensed under CC-BY-SA 2.1 JP. "
+            "https://lifesciencedb.jp/bp3d/"
+        ),
+        origin="https://lifesciencedb.jp/bp3d/",
+        bundled=True,
+    ),
     # myocardium added in a later task as a synthetic build.
 }
