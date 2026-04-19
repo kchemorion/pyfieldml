@@ -91,6 +91,23 @@ class Field:
         result: np.ndarray = j[0]
         return result
 
+    def sample(self, points: ArrayLike) -> np.ndarray:
+        """Sample the field at physical points. Points outside the mesh return NaN."""
+        from pyfieldml.eval.locate import SpatialLocator
+
+        points_arr = np.asarray(points, dtype=np.float64)
+        locator = SpatialLocator(nodes=self._nodes, connectivity=self._conn, basis=self._basis)
+        elems, xis = locator.locate(points_arr)
+        out = np.full(
+            (points_arr.shape[0], self._nodes.shape[1]),
+            np.nan,
+            dtype=np.float64,
+        )
+        inside = elems > 0
+        if inside.any():
+            out[inside] = self.evaluate(element=elems[inside], xi=xis[inside])
+        return out
+
 
 def resolve_field(region: Region, *, name: str) -> Field:
     """Best-effort graph resolution from a FieldML evaluator to a Field.
