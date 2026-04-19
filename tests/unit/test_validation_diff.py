@@ -95,7 +95,7 @@ def test_diff_reports_missing_evaluators() -> None:
     # Remove the basis external evaluator from `b`.
     basis_name = next(n for n in r.evaluators if n.startswith("library.basis."))
     del r.evaluators[basis_name]
-    del r._objects[basis_name]  # type: ignore[attr-defined]
+    del r._objects[basis_name]
 
     b = fml.Document.from_region(r)
     d = diff_documents(a, b)

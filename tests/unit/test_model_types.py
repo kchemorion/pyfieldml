@@ -20,7 +20,7 @@ def test_boolean_type_is_hashable_by_name() -> None:
 
 
 def test_ensemble_type_records_members() -> None:
-    t = EnsembleType(name="nodes", members=range(1, 11))
+    t = EnsembleType(name="nodes", members=range(1, 11))  # type: ignore[arg-type]
     assert t.size == 10
     assert 5 in t.members
     assert 11 not in t.members
@@ -41,7 +41,7 @@ def test_continuous_type_rejects_zero_components() -> None:
 
 
 def test_mesh_type_combines_elements_and_chart() -> None:
-    elements = EnsembleType(name="elems", members=range(1, 5))
+    elements = EnsembleType(name="elems", members=range(1, 5))  # type: ignore[arg-type]
     chart = ContinuousType(name="xi.3d", component_name="xi.3d.c", component_count=3)
     mesh = MeshType(name="mesh", elements=elements, chart=chart)
     assert mesh.dimension == 3

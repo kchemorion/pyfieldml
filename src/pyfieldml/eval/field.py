@@ -12,7 +12,7 @@ from pyfieldml.eval.bases import Basis, get_basis
 from pyfieldml.model.evaluators import Evaluator, ParameterEvaluator
 from pyfieldml.model.region import Region
 
-ArrayLike = np.ndarray | Sequence[float] | Sequence[int]
+ArrayLike = np.ndarray | Sequence[float] | Sequence[int] | float | int
 
 
 class Field:
