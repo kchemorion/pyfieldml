@@ -63,6 +63,7 @@ dev = [
     "mkdocs-jupyter>=0.25",
     "jupyter>=1",
     "pyvista>=0.43",
+    "meshio>=5.3",
 ]
 
 [project.scripts]
