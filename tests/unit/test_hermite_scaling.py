@@ -87,6 +87,6 @@ def test_hermite_line_scale_factors_affect_derivative_contribution() -> None:
     # Scaled: 2.0 * 1.0 * H11(0.75) = -0.28125
     # Difference: -0.140625. So v_scaled - v_unscaled should be -0.140625.
     diff_expected = -0.140625
-    assert (
-        abs((v_scaled - v_unscaled) - diff_expected) < 1e-12
-    ), f"expected diff {diff_expected}, got {v_scaled - v_unscaled}"
+    assert abs((v_scaled - v_unscaled) - diff_expected) < 1e-12, (
+        f"expected diff {diff_expected}, got {v_scaled - v_unscaled}"
+    )

@@ -47,9 +47,9 @@ def test_hermite_quad_value_at_corners() -> None:
     for i, _corner in enumerate(corners):
         for j, dof in enumerate(value_dofs):
             expected = 1.0 if i == j else 0.0
-            assert (
-                abs(phi[i, dof] - expected) < 1e-12
-            ), f"phi[corner={i}, value-DOF-of-corner={j}] = {phi[i, dof]}, expected {expected}"
+            assert abs(phi[i, dof] - expected) < 1e-12, (
+                f"phi[corner={i}, value-DOF-of-corner={j}] = {phi[i, dof]}, expected {expected}"
+            )
 
 
 def test_hermite_quad_derivative_dofs_zero_at_corners() -> None:
