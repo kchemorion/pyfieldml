@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Fieldml version="0.4">
+  <Region name="test">
+    <BooleanType name="boolean"/>
+  </Region>
+</Fieldml>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Fieldml version="0.3">
+  <Region name="test">
+    <ContinuousType name="real.1d"/>
+    <AbstractEvaluator name="real.1d.variable" valueType="real.1d"/>
+  </Region>
+</Fieldml>
