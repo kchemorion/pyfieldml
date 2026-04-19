@@ -115,8 +115,7 @@ writer-level XML-shape parity work).
 
 Type hints are applied throughout and checked with `mypy --strict` on the
 source tree. Documentation is published via `mkdocs-material` with an
-auto-generated API reference and in-browser runnable quickstart notebooks
-via `jupyter-lite`.
+auto-generated API reference and three CI-executed tutorial notebooks.
 
 # Acknowledgements
 
