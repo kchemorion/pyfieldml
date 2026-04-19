@@ -60,3 +60,15 @@ Thumbs.db
 # Generated / temporary
 *.log
 *.tmp
+
+# LaTeX (paper/softwarex) build artefacts
+*.aux
+*.bbl
+*.blg
+*.brf
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+*.toc
+*.spl
