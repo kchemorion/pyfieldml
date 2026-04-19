@@ -6,6 +6,36 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-19
+
+### Added
+- `pyfieldml.interop.meshio`: two-way conversion (`to_meshio` / `from_meshio`)
+  for Lagrange meshes (linear + quadratic, line/tri/quad/tet/hex/wedge), with
+  meshio plugin registration so `meshio.read("*.fieldml")` dispatches through
+  pyfieldml. Exposed as `Document.to_meshio()` / `Document.from_meshio()`.
+- `pyfieldml.interop.pyvista`: `to_pyvista(doc)` returns an
+  `UnstructuredGrid`; `Document.plot()` + `Field.plot()` render via PyVista.
+- `pyfieldml.interop.xdmf`: one-way XDMF3 + HDF5 sidecar writer
+  (`write_xdmf`). No new dependencies (uses existing lxml + h5py).
+- `pyfieldml.interop.scikit_fem`: `to_scikit_fem(doc)` returns a scikit-fem
+  `(Mesh, Basis)` pair for linear Lagrange meshes (tet / hex / tri / quad /
+  line).
+- `pyfieldml.interop.opensim`: OpenSim-adjacent asset export —
+  `export_geometry` (mesh → VTU), `export_muscle_attachments` (landmarks →
+  CSV), `export_fiber_lines` (vector field → line-glyph VTU). Explicitly not
+  a full `.osim` round-trip.
+- `pyfieldml.viz.explorer.explore(doc)` — Jupyter widget (ipywidgets +
+  ipycytoscape) browsing the evaluator graph. Exposed as `Document.explore()`.
+- `Field.as_ndarray()` — returns underlying node DOFs.
+
+### Known limitations
+- PyVista/VTK bridge: `hexahedron27` (quadratic) uses VTK's
+  triquadratic-hex code; no verification against a quadratic fixture yet.
+- `to_meshio`/`to_pyvista`/`write_xdmf` all select the first matching
+  mesh/coord evaluator; multi-mesh documents are not supported.
+- OpenSim export writes VTU regardless of the caller's requested extension
+  because meshio can't read `.vtp` by extension without a hint.
+
 ## [0.3.0] - 2026-04-19
 
 ### Added
@@ -98,7 +128,8 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Community files: CONTRIBUTING, CODE_OF_CONDUCT, CHANGELOG, MAINTAINING,
   issue + PR templates.
 
-[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.4.0
 [0.3.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.3.0
 [0.2.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.2.0
 [0.1.0]: https://github.com/kchemorion/pyfieldml/compare/v0.0.1...v0.1.0
