@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pyfieldml.errors import UnresolvedImportError
+from pyfieldml.errors import FieldMLParseError, UnresolvedImportError
 from pyfieldml.library import get_stdlib_path
 from pyfieldml.model.region import Region
 
@@ -42,7 +42,15 @@ class ImportResolver:
     def _find_source(self, href: str) -> Path | None:
         if href in STDLIB_URLS or href.endswith("FieldML_Library_0.5.xml"):
             return get_stdlib_path()
-        candidate = self.base_dir / href
+        # Guard against path-traversal: reject hrefs that escape base_dir.
+        candidate = (self.base_dir / href).resolve()
+        base = self.base_dir.resolve()
+        try:
+            candidate.relative_to(base)
+        except ValueError:
+            raise FieldMLParseError(
+                f"Refusing to resolve import href {href!r}: escapes base_dir {base}"
+            ) from None
         if candidate.is_file():
             return candidate
         return None
