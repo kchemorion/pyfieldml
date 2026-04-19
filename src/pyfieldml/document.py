@@ -8,9 +8,10 @@ from typing import TYPE_CHECKING, Any
 
 from lxml import etree
 
-from pyfieldml.dom.parser import ParsedDocument, parse_file
+from pyfieldml.dom.parser import ParsedDocument, parse_file, parse_string
 from pyfieldml.dom.validator import validate_tree
 from pyfieldml.dom.writer import write_file
+from pyfieldml.errors import FieldMLParseError
 from pyfieldml.model._loader import load_document
 from pyfieldml.model.evaluators import Evaluator
 from pyfieldml.model.region import Region
@@ -49,8 +50,20 @@ class Document:
 
     @classmethod
     def from_string(cls, content: str | bytes) -> Document:
-        """Read a FieldML document from an in-memory string/bytes."""
-        raise NotImplementedError("Phase 1: from_string is deferred; use from_file for now.")
+        """Read a FieldML document from an in-memory string/bytes.
+
+        External data-resource hrefs (HDF5, plain-text) are resolved relative
+        to the current working directory since no source path is available.
+        """
+        # Local import to avoid a module-level cycle through pyfieldml.model._loader.
+        from pyfieldml.model._loader import _load_region
+
+        parsed = parse_string(content)
+        regions = parsed.tree.getroot().findall("Region")
+        if not regions:
+            raise FieldMLParseError("No <Region> in document")
+        region = _load_region(regions[0], base_dir=Path.cwd())
+        return cls(parsed, region)
 
     @classmethod
     def from_region(cls, region: Region) -> Document:
