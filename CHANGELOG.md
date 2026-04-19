@@ -6,6 +6,45 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-04-19
+
+### Added — Real anatomical meshes in the model zoo
+
+- `datasets.load_bunny_stanford()` — the canonical Stanford Bunny (public
+  domain), ~948 triangles. A real-world 3D-scanned mesh that settles the
+  "do you have a real mesh in this library?" question definitively. Bundled
+  in the wheel.
+- `datasets.load_femur_bodyparts3d()` — the left femur from BodyParts3D
+  (CC-BY-SA 2.1 JP), decimated to ~1500 triangles. Real anatomical atlas
+  data from a peer-reviewed biomedical database (DBCLS, Japan). Bundled in
+  the wheel.
+- `tools/fetch_real_datasets.py` — reproducible generator for both
+  externally-sourced datasets. Re-run to regenerate.
+- `LICENSES/CC-BY-SA-2.1-JP.txt` — full Japanese license text bundled with
+  the wheel (per CC-BY-SA terms requiring the license accompany the work).
+
+### Changed
+
+- The bundled `femur` dataset was upgraded from a uniform-radius cylinder
+  to an anatomically-plausible CSG envelope (shaft + greater/lesser
+  trochanter + femoral neck + spherical head + distal condyles), retaining
+  the BMD-derived Young's-modulus scalar field. It's still synthetic (CC0),
+  but it now actually looks like a bone. Regenerate via
+  `tools/generate_synthetic_datasets.py`.
+- `NOTICE` now carries a "Bundled third-party datasets" section
+  documenting the bunny + BodyParts3D attributions and license terms.
+- `pyproject.toml` `license-files` expanded to include `LICENSES/*.txt`.
+
+### Licensing notes
+
+The bundled third-party datasets retain their original licenses, distinct
+from the Apache 2.0 license covering pyfieldml code:
+- `bunny_stanford.fieldml`: effectively public domain
+  (https://graphics.stanford.edu/data/3Dscanrep/).
+- `femur_bodyparts3d.fieldml`: CC-BY-SA 2.1 JP
+  (https://creativecommons.org/licenses/by-sa/2.1/jp/). Downstream
+  redistributors must comply with CC-BY-SA 2.1 JP for this specific file.
+
 ## [1.0.1] - 2026-04-19
 
 ### Fixed
@@ -245,7 +284,8 @@ scope.
 - Community files: CONTRIBUTING, CODE_OF_CONDUCT, CHANGELOG, MAINTAINING,
   issue + PR templates.
 
-[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v1.1.0
 [1.0.1]: https://github.com/kchemorion/pyfieldml/releases/tag/v1.0.1
 [1.0.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v1.0.0
 [0.5.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.5.0

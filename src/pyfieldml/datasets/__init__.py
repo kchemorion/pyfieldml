@@ -1,14 +1,16 @@
 """Model zoo - curated FieldML assets for tutorials and research.
 
 Public API:
-    datasets.list()                  -> list of available dataset names
-    datasets.info(name)              -> metadata dict for a dataset
-    datasets.download(name)          -> explicit pre-fetch
-    datasets.cache_dir()             -> path to the on-disk cache root
-    datasets.load(name)              -> pyfieldml.Document
-    datasets.load_unit_cube()        -> shortcut for the bundled unit_cube
-    datasets.load_femur()            -> (added in Task 3)
-    datasets.load_rectus_femoris()   -> (added in Task 3)
+    datasets.list()                      -> list of available dataset names
+    datasets.info(name)                  -> metadata dict for a dataset
+    datasets.download(name)              -> explicit pre-fetch
+    datasets.cache_dir()                 -> path to the on-disk cache root
+    datasets.load(name)                  -> pyfieldml.Document
+    datasets.load_unit_cube()            -> shortcut for the bundled unit_cube
+    datasets.load_femur()                -> anatomical-synthetic femur
+    datasets.load_rectus_femoris()       -> synthetic spindle muscle
+    datasets.load_bunny_stanford()       -> Stanford Bunny (public domain)
+    datasets.load_femur_bodyparts3d()    -> BodyParts3D femur (CC-BY-SA 2.1 JP)
 """
 
 from __future__ import annotations
@@ -58,13 +60,27 @@ def load_unit_cube() -> Document:
 
 
 def load_femur() -> Document:
-    """Return the bundled synthetic ``femur`` Document (cylinder + BMD field)."""
+    """Return the bundled anatomical-synthetic ``femur`` Document.
+
+    Produced by a CSG envelope (shaft + femoral head + neck + trochanters +
+    distal condyles) with a BMD-proxy Young's modulus field.
+    """
     return load("femur")
 
 
 def load_rectus_femoris() -> Document:
     """Return the bundled synthetic ``rectus_femoris`` Document (spindle + fiber field)."""
     return load("rectus_femoris")
+
+
+def load_bunny_stanford() -> Document:
+    """Return the bundled Stanford Bunny Document (public domain triangle mesh)."""
+    return load("bunny_stanford")
+
+
+def load_femur_bodyparts3d() -> Document:
+    """Return the bundled BodyParts3D femur Document (CC-BY-SA 2.1 JP triangle mesh)."""
+    return load("femur_bodyparts3d")
 
 
 __all__ = [
@@ -74,7 +90,9 @@ __all__ = [
     "info",
     "list",
     "load",
+    "load_bunny_stanford",
     "load_femur",
+    "load_femur_bodyparts3d",
     "load_rectus_femoris",
     "load_unit_cube",
 ]

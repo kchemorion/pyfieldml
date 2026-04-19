@@ -53,8 +53,9 @@ REGISTRY: dict[str, DatasetInfo] = {
         files={"femur.fieldml": ""},
         license="CC0-1.0",
         citation=(
-            "Synthetic femoral shape (cylinder approximation) authored for "
-            "pyfieldml. CC0 dedication."
+            "Anatomical-synthetic femur (CSG-assembled shaft + femoral head + "
+            "neck + trochanters + distal condyles, with a radial BMD gradient) "
+            "authored for pyfieldml. CC0 dedication."
         ),
         origin="https://github.com/kchemorion/pyfieldml",
         bundled=True,
@@ -65,6 +66,29 @@ REGISTRY: dict[str, DatasetInfo] = {
         license="CC0-1.0",
         citation=("Synthetic muscle spindle shape authored for pyfieldml. CC0 dedication."),
         origin="https://github.com/kchemorion/pyfieldml",
+        bundled=True,
+    ),
+    "bunny_stanford": DatasetInfo(
+        name="bunny_stanford",
+        files={"bunny_stanford.fieldml": ""},
+        license="Public domain (Stanford 3D Scanning Repository)",
+        citation=(
+            "Turk, G. and Levoy, M. (1994). Zippered polygon meshes from range "
+            "images. SIGGRAPH '94. Stanford 3D Scanning Repository."
+        ),
+        origin="https://graphics.stanford.edu/data/3Dscanrep/",
+        bundled=True,
+    ),
+    "femur_bodyparts3d": DatasetInfo(
+        name="femur_bodyparts3d",
+        files={"femur_bodyparts3d.fieldml": ""},
+        license="CC-BY-SA-2.1-JP",
+        citation=(
+            "BodyParts3D, (c) The Database Center for Life Science (DBCLS), "
+            "licensed under CC-BY-SA 2.1 JP. "
+            "https://lifesciencedb.jp/bp3d/"
+        ),
+        origin="https://lifesciencedb.jp/bp3d/",
         bundled=True,
     ),
     # myocardium added in a later task as a synthetic build.

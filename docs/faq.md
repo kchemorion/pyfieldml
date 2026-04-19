@@ -45,13 +45,34 @@ Yes — `pyfieldml.interop` ships bridges to:
 Each bridge is an optional extra — `pip install pyfieldml[meshio]`,
 `[viz]`, `[scikit-fem]`, `[opensim]`, or `[all]`.
 
-## Why are the bundled datasets synthetic?
+## Why are some bundled datasets synthetic?
 
-`unit_cube`, `femur`, and `rectus_femoris` in `pyfieldml.datasets` are
-authored geometries with CC0 licensing. Real Physiome / biomechanics
-models (e.g. the Auckland heart atlas) require per-project licensing
-clearance; we're working with domain groups to incorporate their assets
-in a future minor release. See
+The bundled model zoo in `pyfieldml.datasets` is a mix of authored
+CC0 geometries and permissively-licensed real meshes:
+
+- `unit_cube`, `rectus_femoris` — synthetic, CC0 dedication. Tiny
+  authored geometries useful for tests and tutorials.
+- `femur` — **anatomical-synthetic**, CC0 dedication. As of v1.1 this
+  is no longer a plain cylinder: it is assembled from CSG primitives
+  (shaft with trochanter / condyle swellings, femoral neck, spherical
+  femoral head, and two distal condyle lobes) with a BMD-proxy Young's
+  modulus field.
+- `bunny_stanford` — **real 3D-scanned mesh**, effectively public
+  domain. The Stanford Bunny (Turk & Levoy 1994) from the
+  [Stanford 3D Scanning Repository](https://graphics.stanford.edu/data/3Dscanrep/).
+  Decimated to ~948 triangles to fit the wheel size budget.
+- `femur_bodyparts3d` — **real anatomical atlas sample**,
+  CC-BY-SA 2.1 JP. Derived from
+  [BodyParts3D](https://lifesciencedb.jp/bp3d/) (DBCLS, Japan), the
+  left-femur element (FMA24475). Decimated for bundling; downstream
+  redistributors must comply with CC-BY-SA 2.1 JP for this file
+  specifically (attribution + share-alike). See `NOTICE` and
+  `LICENSES/CC-BY-SA-2.1-JP.txt` in the repository.
+
+We still lack real Physiome-sourced cardiac / MSK meshes pending
+licensing with contributing research groups (e.g. the Auckland heart
+atlas), but as of v1.1 we ship one public-domain real-scanned mesh
+(bunny) and one CC-BY-SA real anatomical atlas sample (femur). See
 [CONTRIBUTING.md](https://github.com/kchemorion/pyfieldml/blob/main/CONTRIBUTING.md)
 for how to contribute your own dataset.
 
