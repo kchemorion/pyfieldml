@@ -6,6 +6,59 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-04-19
+
+### Summary
+First stable release of pyfieldml. Feature-complete for core FieldML 0.5
+read/write, evaluation, interop, and tooling. See the design spec at
+`docs/superpowers/specs/2026-04-18-pyfieldml-design.md` for the full
+scope.
+
+### Added (new since v0.5.0)
+- v1.0 README: status badges (CI, Docs, PyPI, Python versions, license),
+  refreshed quickstart using the model-zoo loader, dedicated "Cite this
+  work" section.
+- `docs/faq.md` — project-level FAQ (what is FieldML, supported bases,
+  legacy compatibility, interop, licensing on datasets, reporting bugs,
+  paper status).
+- `docs/cite.md` — canonical citation guidance with software BibTeX, the
+  pending JOSS paper note, and citations for the underlying FieldML spec
+  and the original C++ FieldML-API.
+- `paper/` — Journal of Open Source Software (JOSS) submission draft:
+  `paper.md` (summary, statement of need, key features, implementation
+  notes, acknowledgements), `paper.bib` (references to FieldML spec, C++
+  API, NumPy, SciPy, HDF5, meshio, PyVista, scikit-fem, XDMF), and
+  contributor notes for rendering via `openjournals/inara`.
+
+### Deferred to future minor releases
+- `jupyter-lite` in-browser runnable notebooks (infrastructure groundwork
+  only so far; full pyodide build postponed).
+- Packaged public conformance test-suite zip attached to the release
+  (workflow runs the tests already; publishing the fixture corpus as a
+  downloadable artifact is a follow-up).
+- Real Physiome/biomechanics datasets (licensing clearance pending).
+- 5 further tutorial notebooks (build-femur, cardiac-Hermite,
+  scikit-fem solve, OpenSim bridge, legacy conversion).
+- Reproducibility benchmark notebook.
+- Full writer-parity vs the C++ reference (conformance CI assertions
+  currently skipped; infrastructure is in place).
+
+### Accumulated feature set at 1.0 (from prior phases)
+- FieldML 0.3 / 0.4 / 0.5 read; 0.5 write.
+- Full evaluator hierarchy (7 subtypes), bindings, import resolution.
+- Four array backends: inline text, external text, HDF5 dense, HDF5 DOK sparse.
+- 12 Lagrange bases + 3 Hermite bases across all standard element topologies.
+- `Field.evaluate` / `.sample` / `.jacobian` with vectorized NumPy + cKDTree
+  spatial locate.
+- Interop bridges: `meshio` (two-way + plugin registration), PyVista,
+  XDMF3, scikit-fem, OpenSim-adjacent export, Jupyter graph-explorer widget.
+- Semantic linter + diff.
+- CLI: `inspect / validate / convert / plot / lint / diff / bench`.
+- Three tutorial notebooks (CI-executed via nbmake).
+- Three bundled synthetic datasets (unit_cube, femur, rectus_femoris).
+- 175+ unit tests + 3 notebook tests across a CI matrix of Python
+  3.10–3.13 × Linux / macOS / Windows.
+
 ## [0.5.0] - 2026-04-19
 
 ### Added
@@ -162,7 +215,8 @@ pyfieldml follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Community files: CONTRIBUTING, CODE_OF_CONDUCT, CHANGELOG, MAINTAINING,
   issue + PR templates.
 
-[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/kchemorion/pyfieldml/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v1.0.0
 [0.5.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.5.0
 [0.4.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.4.0
 [0.3.0]: https://github.com/kchemorion/pyfieldml/releases/tag/v0.3.0
