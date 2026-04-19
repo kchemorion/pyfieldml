@@ -82,6 +82,7 @@ packages = ["src/pyfieldml"]
 "src/pyfieldml/datasets/_bundled/unit_cube.fieldml" = "pyfieldml/datasets/_bundled/unit_cube.fieldml"
 "src/pyfieldml/datasets/_bundled/femur.fieldml" = "pyfieldml/datasets/_bundled/femur.fieldml"
 "src/pyfieldml/datasets/_bundled/rectus_femoris.fieldml" = "pyfieldml/datasets/_bundled/rectus_femoris.fieldml"
+"src/pyfieldml/datasets/_bundled/bunny_stanford.fieldml" = "pyfieldml/datasets/_bundled/bunny_stanford.fieldml"
 
 [tool.ruff]
 line-length = 100

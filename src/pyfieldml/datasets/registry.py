@@ -68,5 +68,16 @@ REGISTRY: dict[str, DatasetInfo] = {
         origin="https://github.com/kchemorion/pyfieldml",
         bundled=True,
     ),
+    "bunny_stanford": DatasetInfo(
+        name="bunny_stanford",
+        files={"bunny_stanford.fieldml": ""},
+        license="Public domain (Stanford 3D Scanning Repository)",
+        citation=(
+            "Turk, G. and Levoy, M. (1994). Zippered polygon meshes from range "
+            "images. SIGGRAPH '94. Stanford 3D Scanning Repository."
+        ),
+        origin="https://graphics.stanford.edu/data/3Dscanrep/",
+        bundled=True,
+    ),
     # myocardium added in a later task as a synthetic build.
 }

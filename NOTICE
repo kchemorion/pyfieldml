@@ -24,3 +24,16 @@ Physiome Project (https://physiomeproject.org/).
 
 pyfieldml does not incorporate source code from the original FieldML-API.
 This NOTICE acknowledges the foundational work that made pyfieldml possible.
+
+
+Bundled third-party datasets
+----------------------------
+
+The following datasets are bundled in src/pyfieldml/datasets/_bundled/ under
+their respective licenses, distinct from the Apache 2.0 license of pyfieldml:
+
+- bunny_stanford.fieldml: derived from the Stanford Bunny, originally scanned
+  by Greg Turk and Marc Levoy at Stanford University (1994). Available from
+  the Stanford 3D Scanning Repository (https://graphics.stanford.edu/data/3Dscanrep/).
+  The original README states: "These models may be used for any purpose."
+  Effectively public domain.

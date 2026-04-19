@@ -48,7 +48,12 @@ def test_cache_dir_respects_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
 
 def test_list_contains_all_bundled() -> None:
     names = datasets.list()
-    for expected in ("unit_cube", "femur", "rectus_femoris"):
+    for expected in (
+        "unit_cube",
+        "femur",
+        "rectus_femoris",
+        "bunny_stanford",
+    ):
         assert expected in names
 
 
@@ -73,3 +78,40 @@ def test_load_rectus_femoris_has_fiber_field() -> None:
     assert arr.shape[1] == 3  # 3-vector per node
     # All fibers along +z
     np.testing.assert_allclose(arr[:, 2], 1.0, atol=1e-12)
+
+
+def test_load_bunny_stanford() -> None:
+    doc = datasets.load_bunny_stanford()
+    assert "coordinates" in doc.evaluators
+    coords = doc.evaluators["coordinates"]
+    assert isinstance(coords, ParameterEvaluator)
+    # Bunny should have at least a few hundred points
+    assert coords.as_ndarray().shape[0] >= 100
+
+
+def test_bunny_has_triangle_mesh() -> None:
+    doc = datasets.load_bunny_stanford()
+    # It's a surface mesh, so the basis should be linear Lagrange triangle
+    basis_names = [n for n in doc.evaluators if n.startswith("library.basis.")]
+    assert any("triangle" in n for n in basis_names)
+
+
+def test_femur_is_anatomical_not_cylindrical() -> None:
+    """The new anatomical femur should have non-constant axial radius."""
+    doc = datasets.load_femur()
+    coords = doc.evaluators["coordinates"]
+    assert isinstance(coords, ParameterEvaluator)
+    pts = coords.as_ndarray()
+    # Split into 4 z-slices and measure radial extent in each
+    z_min, z_max = pts[:, 2].min(), pts[:, 2].max()
+    bins = np.linspace(z_min, z_max, 5)
+    radii = []
+    for i in range(4):
+        mask = (pts[:, 2] >= bins[i]) & (pts[:, 2] < bins[i + 1])
+        slab = pts[mask]
+        if len(slab) > 3:
+            r = np.sqrt(slab[:, 0] ** 2 + slab[:, 1] ** 2).max()
+            radii.append(r)
+    # Anatomical femur has wider proximal/distal than mid-shaft; a cylinder
+    # would have uniform radius. Assert at least 20% variation.
+    assert max(radii) / min(radii) > 1.2, f"Femur radii too uniform (cylinder-like): {radii}"
